@@ -257,6 +257,14 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusPermanentRedirect)
 }
 
+func clearHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintln(w, "OK")
+
+	requestCache.Flush()
+	packages.clear()
+}
+
 func main() {
 	flag.Parse()
 
@@ -291,6 +299,8 @@ func main() {
 	}
 
 	r := mux.NewRouter()
+	r.HandleFunc("/-/clear", clearHandler).Methods("GET")
+
 	r.HandleFunc("/orgs/{owner}", indexHandler).Methods("GET")
 	r.HandleFunc("/orgs/{owner}/", indexHandler).Methods("GET")
 	r.HandleFunc("/orgs/{owner}/archive.key", archiveKeyHandler).Methods("GET")

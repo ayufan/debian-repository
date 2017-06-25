@@ -38,3 +38,10 @@ func (d *debPackages) get(release *github.RepositoryRelease, asset *github.Relea
 	deb := d.find(*asset.ID)
 	return deb, deb.ensure(release, asset)
 }
+
+func (d *debPackages) clear() {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	d.cache.Clear()
+}
