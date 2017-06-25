@@ -9,10 +9,10 @@ import (
 	"compress/gzip"
 	"archive/tar"
 	"strings"
-
-	"github.com/blakesmith/ar"
 	"os"
 	"path/filepath"
+
+	"github.com/blakesmith/ar"
 )
 
 func enumerateDebianArchive(r io.Reader, fn func(name string, r *ar.Reader) error) error {
@@ -75,7 +75,7 @@ func parseControlTarGz(url string, r io.Reader) ([]byte, error) {
 	return nil, errors.New("control not found in control.tar.gz")
 }
 
-func readDebianArchive(url string) (debianControl []byte, etag string, err error) {
+func readDebianArchive(url string) (debianControl []byte, md5sum string, err error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return
@@ -86,13 +86,18 @@ func readDebianArchive(url string) (debianControl []byte, etag string, err error
 	}
 	defer resp.Body.Close()
 
-	etag = resp.Header.Get("Etag")
+	md5sum = resp.Header.Get("Etag")
+	md5sum = strings.Trim(md5sum, `W/"`)
+	if md5sum == "" {
+		err = fmt.Errorf("missing md5sum")
+		return
+	}
 
 	repositoryCache := os.Getenv("REPOSITORY_CACHE")
 	if repositoryCache == "" {
 		repositoryCache = "tmp-cache"
 	}
-	cachePath := filepath.Join(repositoryCache, etag + "-control")
+	cachePath := filepath.Join(repositoryCache, md5sum + "-control")
 
 	// read file from cache
 	debianControl, err = ioutil.ReadFile(cachePath)

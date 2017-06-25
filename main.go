@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
 	"strconv"
 
 	"github.com/google/go-github/github"

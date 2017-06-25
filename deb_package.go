@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -65,7 +64,7 @@ func (p *debPackage) updatedAt() time.Time {
 }
 
 func (p *debPackage) load(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-	control, etag, err := readDebianArchive(*asset.BrowserDownloadURL)
+	control, md5sum, err := readDebianArchive(*asset.BrowserDownloadURL)
 	if err != nil {
 		return err
 	}
@@ -87,8 +86,7 @@ func (p *debPackage) load(release *github.RepositoryRelease, asset *github.Relea
 	p.release = release
 	p.asset = asset
 	p.paragraphs = paragraphs[0]
-	p.md5sum = etag
-	p.md5sum = strings.Trim(p.md5sum, `W/"`)
+	p.md5sum = md5sum
 
 	// Validate package
 	if p.name() == "" {

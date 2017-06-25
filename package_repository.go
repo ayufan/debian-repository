@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"time"
-
 	"sort"
 
 	"github.com/google/go-github/github"
@@ -67,11 +66,7 @@ func (p *packageRepository) add(release *github.RepositoryRelease, asset *github
 }
 
 func (p *packageRepository) sort() {
-	fmt.Println("sort me")
 	sort.Sort(p.debs)
-	for _, xx := range p.debs {
-		fmt.Println("XX:", xx.name(), xx.architecture(), xx.version())
-	}
 }
 
 func (p *packageRepository) write(w io.Writer) {
