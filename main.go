@@ -106,10 +106,6 @@ func getPackages(w http.ResponseWriter, r *http.Request) (*packageRepository, er
 	}
 
 	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		if release.Prerelease != nil && *release.Prerelease {
-			return nil
-		}
-
 		repository.add(release, asset)
 		return nil
 	})
