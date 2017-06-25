@@ -35,15 +35,6 @@ func isOwnerAllowed(owner string) bool {
 	return false
 }
 
-func handleError(w http.ResponseWriter, err error) bool {
-	if err == nil {
-		return false
-	}
-
-	http.Error(w, err.Error(), http.StatusInternalServerError)
-	return true
-}
-
 func iteratePackages(releases []github.RepositoryRelease, distribution string, fn func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error) error {
 	for _, release := range releases {
 		if release.Draft != nil && *release.Draft {
@@ -81,14 +72,12 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(release *
 		return fmt.Errorf("%q is not allowed. Please add it to ALLOWED_ORGS", vars["owner"])
 	}
 
-	releases, resp, err := client.Repositories.ListReleases(vars["owner"], vars["repo"], nil)
-	if err != nil {
-		return err
+	releases, resp, err := listReleases(vars["owner"], vars["repo"])
+	if resp != nil {
+		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Rate.Limit))
+		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(resp.Rate.Remaining))
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(resp.Rate.Reset.Unix(), 10))
 	}
-
-	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Rate.Limit))
-	w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(resp.Rate.Remaining))
-	w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(resp.Rate.Reset.Unix(), 10))
 
 	// do trigger loading of all packages
 	err = iteratePackages(releases, vars["distribution"], func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
@@ -141,11 +130,12 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		schema = "http"
 	}
 	url := schema + "://" + r.Host + strings.TrimSuffix(r.URL.String(), "/")
-	githubUrl := "https://github.com/" + vars["owner"] + "/" + vars["repo"] + "/releases"
 
 	fmt.Fprintln(w, "<h2>Welcome to automated Debian Repository made on top of GitHub Releases</h2>")
+
+	githubURL := "https://github.com/" + vars["owner"] + "/" + vars["repo"] + "/releases"
 	fmt.Fprintln(w, "This repository is built for: ")
-	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, githubUrl, githubUrl)
+	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, githubURL, githubURL)
 
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>1. Add a repository key:</h4>")

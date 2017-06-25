@@ -1,31 +1,33 @@
 package main
 
 import (
-	"sync"
 	"errors"
+	"sync"
 
+	"github.com/golang/groupcache/lru"
 	"github.com/google/go-github/github"
 )
 
 type debPackages struct {
-	debs map[int]*debPackage
-	lock sync.Mutex
+	cache *lru.Cache
+	lock  sync.Mutex
 }
 
 var packages debPackages = debPackages{
-	debs: make(map[int]*debPackage),
+	cache: lru.New(10000),
 }
 
 func (d *debPackages) find(id int) *debPackage {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	deb := d.debs[id]
-	if deb == nil {
+	deb, found := d.cache.Get(id)
+	if !found {
 		deb = &debPackage{}
-		d.debs[id] = deb
+		d.cache.Add(id, deb)
 	}
-	return deb
+
+	return deb.(*debPackage)
 }
 
 func (d *debPackages) get(release *github.RepositoryRelease, asset *github.ReleaseAsset) (*debPackage, error) {

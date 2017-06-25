@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"strings"
+
 	"github.com/google/go-github/github"
 	"github.com/stapelberg/godebiancontrol"
 )
@@ -104,9 +106,22 @@ func (p *debPackage) load(release *github.RepositoryRelease, asset *github.Relea
 	return nil
 }
 
+func (p *debPackage) scheduleRestart() {
+	if p.loadStatus == nil {
+		return
+	}
+
+	if strings.Contains(p.loadStatus.Error(), "http") {
+		time.AfterFunc(30*time.Second, func() {
+			p.loadOnce = sync.Once{}
+		})
+	}
+}
+
 func (p *debPackage) ensure(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
 	p.loadOnce.Do(func() {
 		p.loadStatus = p.load(release, asset)
+		p.scheduleRestart()
 	})
 	return p.loadStatus
 }
