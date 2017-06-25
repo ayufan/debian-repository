@@ -12,8 +12,12 @@ import (
 	"strconv"
 	"strings"
 
+	"time"
+
+	"github.com/golang/groupcache/lru"
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
+	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/clearsign"
@@ -21,6 +25,8 @@ import (
 )
 
 var httpAddr = flag.String("httpAddr", ":5000", "HTTP Address to listen to")
+var requestCacheExpiration = flag.Duration("requestCache", 24*time.Hour, "Request cache expiration timeout")
+var packageLruCache = flag.Int("packageLruCache", 10000, "Number of packages stored in memory")
 
 var allowedOwners []string
 var client *github.Client
@@ -281,6 +287,11 @@ func main() {
 		log.Println("Using Public API. You may want to pass GITHUB_TOKEN.")
 	}
 
+	requestCache = cache.New(*requestCacheExpiration, time.Minute)
+	packages = &debPackages{
+		cache: lru.New(*packageLruCache),
+	}
+
 	entityList, err := openpgp.ReadArmoredKeyRing(bytes.NewBufferString(os.Getenv("GPG_KEY")))
 	if err != nil {
 		log.Fatalln("Failed to parse environment GPG_KEY:", err)
@@ -299,7 +310,7 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/-/clear", clearHandler).Methods("GET")
+	r.HandleFunc("/settings/cache/clear", clearHandler).Methods("GET", "POST")
 
 	r.HandleFunc("/orgs/{owner}", indexHandler).Methods("GET")
 	r.HandleFunc("/orgs/{owner}/", indexHandler).Methods("GET")

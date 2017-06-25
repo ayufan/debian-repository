@@ -2,13 +2,12 @@ package main
 
 import (
 	"path/filepath"
-	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/patrickmn/go-cache"
 )
 
-var requestCache = cache.New(time.Minute, time.Minute)
+var requestCache *cache.Cache
 
 func listReleasesOneRepo(owner, repo string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
 	cached, found := requestCache.Get(filepath.Join(owner, repo))

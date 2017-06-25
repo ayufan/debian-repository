@@ -13,9 +13,7 @@ type debPackages struct {
 	lock  sync.Mutex
 }
 
-var packages debPackages = debPackages{
-	cache: lru.New(10000),
-}
+var packages *debPackages
 
 func (d *debPackages) find(id int) *debPackage {
 	d.lock.Lock()

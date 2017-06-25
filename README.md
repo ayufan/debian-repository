@@ -31,6 +31,13 @@ The address of your repositories are:
 * https://my-domain.com/orgs/my-org -> organization-wide repository
 * https://my-domain.com/my-org/my-repo -> project-only repository
 
+### Evict cache
+
+You can force to evict in-memory request and package cache:
+* https://my-domain.com/settings/cache/clear
+
+This is useful to be set as Webhook for project or organization.
+
 ### Author/License
 
 MIT, 2017, Kamil Trzciński
