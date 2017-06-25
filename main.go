@@ -143,7 +143,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `<a href=%q>%s</a><br>`, githubURL, githubURL)
 	} else {
 		githubURL := "https://github.com/" + vars["owner"]
-		fmt.Fprintln(w, "This repository for releases from all proejcts in: ")
+		fmt.Fprintln(w, "This repository for releases from all projects in: ")
 		fmt.Fprintf(w, `<a href=%q>%s</a><br>`, githubURL, githubURL)
 	}
 
