@@ -25,9 +25,11 @@ server:
   mem_limit: 512M
 ```
 
-### Use
+### Access
 
-Access the address of your repository: https://my-domain.com/my-org/my-repo
+The address of your repositories are:
+* https://my-domain.com/orgs/my-org -> organization-wide repository
+* https://my-domain.com/my-org/my-repo -> project-only repository
 
 ### Author/License
 

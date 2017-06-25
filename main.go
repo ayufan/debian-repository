@@ -99,7 +99,11 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(release *
 }
 
 func getPackages(w http.ResponseWriter, r *http.Request) (*packageRepository, error) {
-	repository := &packageRepository{}
+	vars := mux.Vars(r)
+
+	repository := &packageRepository{
+		organizationWide: vars["repo"] == "",
+	}
 
 	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
 		if release.Prerelease != nil && *release.Prerelease {
@@ -133,9 +137,15 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintln(w, "<h2>Welcome to automated Debian Repository made on top of GitHub Releases</h2>")
 
-	githubURL := "https://github.com/" + vars["owner"] + "/" + vars["repo"] + "/releases"
-	fmt.Fprintln(w, "This repository is built for: ")
-	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, githubURL, githubURL)
+	if vars["repo"] != "" {
+		githubURL := "https://github.com/" + vars["owner"] + "/" + vars["repo"] + "/releases"
+		fmt.Fprintln(w, "This repository is built for: ")
+		fmt.Fprintf(w, `<a href=%q>%s</a><br>`, githubURL, githubURL)
+	} else {
+		githubURL := "https://github.com/" + vars["owner"]
+		fmt.Fprintln(w, "This repository for releases from all proejcts in: ")
+		fmt.Fprintf(w, `<a href=%q>%s</a><br>`, githubURL, githubURL)
+	}
 
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>1. Add a repository key:</h4>")
@@ -285,6 +295,18 @@ func main() {
 	}
 
 	r := mux.NewRouter()
+	r.HandleFunc("/orgs/{owner}", indexHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/", indexHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/archive.key", archiveKeyHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}", distributionIndexHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/", distributionIndexHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/Packages", packagesHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/Packages.gz", packagesGzHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/Release", releaseHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/Release.gpg", releaseGpgHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/InRelease", inReleaseHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/download/{repo}/{tag_name}/{file_name}", downloadHandler).Methods("GET")
+
 	r.HandleFunc("/{owner}/{repo}", indexHandler).Methods("GET")
 	r.HandleFunc("/{owner}/{repo}/", indexHandler).Methods("GET")
 	r.HandleFunc("/{owner}/{repo}/archive.key", archiveKeyHandler).Methods("GET")

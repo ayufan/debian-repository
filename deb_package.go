@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/stapelberg/godebiancontrol"
+	"path/filepath"
 )
 
 type debKey struct {
@@ -21,9 +22,14 @@ type debKey struct {
 }
 
 type debPackage struct {
-	release    *github.RepositoryRelease
-	asset      *github.ReleaseAsset
 	paragraphs godebiancontrol.Paragraph
+
+	repoName    string
+	tagName     string
+	fileName    string
+	downloadURL string
+	fileSize    int
+	updatedAt   time.Time
 
 	control string
 	md5sum  string
@@ -61,10 +67,6 @@ func (p *debPackage) version() string {
 	return p.paragraphs["Version"]
 }
 
-func (p *debPackage) updatedAt() time.Time {
-	return p.asset.UpdatedAt.Time
-}
-
 func (p *debPackage) load(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
 	control, md5sum, err := readDebianArchive(*asset.BrowserDownloadURL)
 	if err != nil {
@@ -84,9 +86,15 @@ func (p *debPackage) load(release *github.RepositoryRelease, asset *github.Relea
 		return errors.New("too many paragraphs")
 	}
 
+	downloadURL := strings.Split(*asset.BrowserDownloadURL, "/")
+
 	p.control = string(control)
-	p.release = release
-	p.asset = asset
+	p.repoName = downloadURL[4]
+	p.tagName = downloadURL[7]
+	p.fileName = downloadURL[8]
+	p.downloadURL = *asset.BrowserDownloadURL
+	p.fileSize = *asset.Size
+	p.updatedAt = asset.UpdatedAt.Time
 	p.paragraphs = paragraphs[0]
 	p.md5sum = md5sum
 
@@ -126,10 +134,14 @@ func (p *debPackage) ensure(release *github.RepositoryRelease, asset *github.Rel
 	return p.loadStatus
 }
 
-func (p *debPackage) write(w io.Writer) {
+func (p *debPackage) write(w io.Writer, organizationWide bool) {
 	fmt.Fprint(w, p.control)
-	fmt.Fprint(w, "Filename: ", "./download/", *p.release.TagName, "/", *p.asset.Name, "\n")
-	fmt.Fprint(w, "Size: ", *p.asset.Size, "\n")
-	fmt.Fprint(w, "MD5sum: ", p.md5sum, "\n")
-	fmt.Fprint(w, "\n")
+	if organizationWide {
+		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.repoName, p.tagName, p.fileName))
+	} else {
+		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.tagName, p.fileName))
+	}
+	fmt.Fprintln(w, "Size:", p.fileSize)
+	fmt.Fprintln(w, "MD5sum:", p.md5sum)
+	fmt.Fprintln(w)
 }

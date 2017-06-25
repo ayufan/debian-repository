@@ -1,16 +1,16 @@
 package main
 
 import (
-	"net/http"
+	"archive/tar"
+	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"errors"
-	"compress/gzip"
-	"archive/tar"
-	"strings"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/blakesmith/ar"
 )
@@ -97,7 +97,7 @@ func readDebianArchive(url string) (debianControl []byte, md5sum string, err err
 	if repositoryCache == "" {
 		repositoryCache = "tmp-cache"
 	}
-	cachePath := filepath.Join(repositoryCache, md5sum + "-control")
+	cachePath := filepath.Join(repositoryCache, md5sum+"-control")
 
 	// read file from cache
 	debianControl, err = ioutil.ReadFile(cachePath)

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"time"
 	"sort"
+	"time"
 
 	"github.com/google/go-github/github"
 )
@@ -41,8 +41,9 @@ func (a debPackageSlice) Less(i, j int) bool {
 }
 
 type packageRepository struct {
-	debs   debPackageSlice
-	loaded map[debKey]struct{}
+	debs             debPackageSlice
+	loaded           map[debKey]struct{}
+	organizationWide bool
 }
 
 func (p *packageRepository) add(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
@@ -71,7 +72,7 @@ func (p *packageRepository) sort() {
 
 func (p *packageRepository) write(w io.Writer) {
 	for _, deb := range p.debs {
-		deb.write(w)
+		deb.write(w, p.organizationWide)
 	}
 }
 
@@ -84,9 +85,8 @@ func (p *packageRepository) writeGz(w io.Writer) {
 
 func (p *packageRepository) newestUpdatedAt() (result time.Time) {
 	for _, deb := range p.debs {
-		updatedAt := deb.updatedAt()
-		if result.Sub(updatedAt) < 0 {
-			result = updatedAt
+		if result.Sub(deb.updatedAt) < 0 {
+			result = deb.updatedAt
 		}
 	}
 	return

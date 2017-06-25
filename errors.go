@@ -10,4 +10,3 @@ func handleError(w http.ResponseWriter, err error) bool {
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 	return true
 }
-
