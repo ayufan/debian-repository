@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/patrickmn/go-cache"
@@ -16,7 +18,21 @@ func listReleasesOneRepo(owner, repo string) (releases []github.RepositoryReleas
 		return
 	}
 
+	start := time.Now()
 	releases, resp, err = client.Repositories.ListReleases(owner, repo, nil)
+
+	var rate github.Rate
+	if resp != nil {
+		rate = resp.Rate
+	}
+	log.Println("listReleases:",
+		"owner:", owner,
+		"repo:", repo,
+		"releases:", len(releases),
+		"error:", err,
+		"limits:", rate,
+		"duration:", time.Since(start))
+
 	if err != nil {
 		return
 	}
@@ -32,7 +48,20 @@ func listProjects(owner string) (repos []github.Repository, resp *github.Respons
 		return
 	}
 
+	start := time.Now()
 	repos, resp, err = client.Repositories.List(owner, nil)
+
+	var rate github.Rate
+	if resp != nil {
+		rate = resp.Rate
+	}
+	log.Println("listProjects:",
+		"owner:", owner,
+		"repos:", len(repos),
+		"error:", err,
+		"limits:", rate,
+		"duration:", time.Since(start))
+
 	if err != nil {
 		return
 	}
