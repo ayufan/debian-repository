@@ -17,7 +17,7 @@ server:
   environment:
     VIRTUAL_HOST: "my-domain.com"
     VIRTUAL_PORT: 5000
-    ENABLE_HTTP: true
+    ENABLE_HTTP: "true"
     ALLOWED_ORGS: ayufan-rock64,ayufan-pine64
     GITHUB_TOKEN: my-github-token
     GPG_KEY: |

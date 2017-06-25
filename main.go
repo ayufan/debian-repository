@@ -9,8 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
@@ -152,10 +152,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "<code>$ curl -fsSL "+url+"/archive.key | sudo apt-key add -</code>")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>2. Add stable repository:</h4>")
-	fmt.Fprintln(w, `<code>$ sudo sudo: add-apt-repository: command not found "deb `+url+`/releases /"</code>`)
+	fmt.Fprintln(w, `<code>$ sudo add-apt-repository "deb `+url+`/releases /"</code>`)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>3. (optionally) Add pre-release repository:</h4>")
-	fmt.Fprintln(w, `<code>$ sudo sudo: add-apt-repository: command not found "deb `+url+`/pre-releases /"</code>`)
+	fmt.Fprintln(w, `<code>$ sudo add-apt-repository "deb `+url+`/pre-releases /"</code>`)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>4. Update apt:</h4>")
 	fmt.Fprintln(w, `<code>$ sudo apt-get update</code>`)
