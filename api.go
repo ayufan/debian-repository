@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/google/go-github/github"
@@ -70,22 +71,40 @@ func listProjects(owner string) (repos []github.Repository, resp *github.Respons
 	return
 }
 
-func listReleases(owner, repo string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
-	if repo == "" {
-		repos, resp, err := listProjects(owner)
-		if err != nil {
-			return nil, resp, err
-		}
-
-		for _, repo := range repos {
-			repoReleases, _, err := listReleasesOneRepo(owner, *repo.Name)
-			if err != nil {
-				continue
-			}
-			releases = append(releases, repoReleases...)
-		}
-	} else {
-		releases, resp, err = listReleasesOneRepo(owner, repo)
+func listReleasesInOrganization(owner string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
+	repos, resp, err := listProjects(owner)
+	if err != nil {
+		return nil, resp, err
 	}
+
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+
+	for _, repo := range repos {
+		wg.Add(1)
+		go func(repo string) {
+			defer wg.Done()
+			repoReleases, resp2, err2 := listReleasesOneRepo(owner, repo)
+			if resp2 != nil {
+				resp = resp2
+			}
+			if err2 != nil {
+				err = err2
+				return
+			}
+
+			lock.Lock()
+			defer lock.Unlock()
+			releases = append(releases, repoReleases...)
+		}(*repo.Name)
+	}
+	wg.Wait()
 	return
+}
+
+func listReleases(owner, repo string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
+	if repo != "" {
+		return listReleasesOneRepo(owner, repo)
+	}
+	return listReleasesInOrganization(owner)
 }
