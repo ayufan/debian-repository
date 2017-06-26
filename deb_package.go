@@ -138,8 +138,5 @@ func (p *debPackage) write(w io.Writer, organizationWide bool) {
 		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.tagName, p.fileName))
 	}
 	fmt.Fprintln(w, "Size:", p.fileSize)
-	for hash, value := range p.Hashes {
-		fmt.Fprintln(w, hash+":", value)
-	}
 	fmt.Fprintln(w)
 }

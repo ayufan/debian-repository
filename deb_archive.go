@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,10 +10,12 @@ import (
 	"net/http"
 	"strings"
 
+	"bytes"
+
 	"github.com/blakesmith/ar"
 )
 
-func enumeratedebArchive(r io.Reader, fn func(name string, r io.Reader) error) error {
+func enumerateDebArchive(r io.Reader, fn func(name string, r io.Reader) error) error {
 	rd := ar.NewReader(r)
 
 	for {
@@ -37,7 +38,7 @@ func enumeratedebArchive(r io.Reader, fn func(name string, r io.Reader) error) e
 	return nil
 }
 
-func parseDebianBinary(r io.Reader) (string, error) {
+func readDebianBinary(r io.Reader) (string, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return "", err
@@ -51,7 +52,7 @@ func parseDebianBinary(r io.Reader) (string, error) {
 	return version, nil
 }
 
-func parseControlTarGz(r io.Reader) ([]byte, error) {
+func readControlTarGz(r io.Reader) ([]byte, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err
@@ -75,12 +76,10 @@ func parseControlTarGz(r io.Reader) ([]byte, error) {
 }
 
 type debArchive struct {
-	Version string
 	Control []byte
-	Hashes  map[string]string
 }
 
-func (d *debArchive) readArchive(r io.Reader) error {
+func (d *debArchive) parseArchive(r io.Reader) error {
 	m := newMultiHash()
 	pr, pw := io.Pipe()
 	defer pr.Close()
@@ -90,42 +89,42 @@ func (d *debArchive) readArchive(r io.Reader) error {
 		io.Copy(io.MultiWriter(pw, m), r)
 	}()
 
-	err := enumeratedebArchive(pr, func(name string, r io.Reader) (err error) {
+	var debianVersion string
+
+	err := enumerateDebArchive(pr, func(name string, r io.Reader) (err error) {
 		if name == "debian-binary" || name == "debian-binary/" {
-			d.Version, err = parseDebianBinary(r)
+			debianVersion, err = readDebianBinary(r)
 		} else if name == "control.tar.gz" || name == "control.tar.gz/" {
-			d.Control, err = parseControlTarGz(r)
+			d.Control, err = readControlTarGz(r)
 		}
 		return
 	})
 
 	if err == nil {
-		if d.Version == "" || d.Control == nil {
+		if debianVersion == "" || d.Control == nil {
 			err = errors.New("missing debian-binary or control.tar.gz")
 		}
 	}
 	if err == nil {
-		d.Hashes = m.packagesHashes()
+		buffer := bytes.NewBuffer(d.Control)
+		m.writePackageHashes(buffer)
+		d.Control = buffer.Bytes()
 	}
 	return err
 }
 
 func (d *debArchive) readFromCache(tag string) error {
-	data, err := readFromCache(tag, "json")
+	data, err := readFromCache(tag, "control")
 	if err != nil {
 		return err
 	}
 
-	return json.Unmarshal(data, d)
+	d.Control = data
+	return nil
 }
 
 func (d *debArchive) writeToCache(tag string) error {
-	data, err := json.MarshalIndent(d, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return writeToCache(tag, "json", data)
+	return writeToCache(tag, "control", d.Control)
 }
 
 func readDebArchive(url string) (deb *debArchive, err error) {
@@ -151,8 +150,7 @@ func readDebArchive(url string) (deb *debArchive, err error) {
 		return
 	}
 
-	deb = &debArchive{}
-	err = deb.readArchive(resp.Body)
+	err = deb.parseArchive(resp.Body)
 	if err != nil {
 		return nil, err
 	}

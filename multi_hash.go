@@ -13,6 +13,7 @@ import (
 )
 
 var supportedHashes = []string{"MD5Sum", "SHA1", "SHA256", "SHA512"}
+var supportedPackageHashes = []string{"MD5sum:", "SHA1:", "SHA256:", "SHA512:"}
 
 type multiHash struct {
 	io.Writer
@@ -62,14 +63,11 @@ func (m *multiHash) releaseHash(w io.Writer, hashName string, name string) {
 	fmt.Fprintln(w, "", hex.EncodeToString(checksum), m.buffer.Len(), name)
 }
 
-func (m *multiHash) packagesHashes() map[string]string {
-	hashes := make(map[string]string)
-	for _, hashName := range supportedHashes {
+func (m *multiHash) writePackageHashes(w io.Writer) {
+	for hashIndex, hashName := range supportedHashes {
 		hash := m.hashes[hashName]
-		if hashName == "MD5Sum" {
-			hashName = "MD5sum"
-		}
-		hashes[hashName] = hex.EncodeToString(hash.Sum(nil))
+		packageHashName := supportedPackageHashes[hashIndex]
+		packageHashValue := hex.EncodeToString(hash.Sum(nil))
+		fmt.Fprintln(w, packageHashName, packageHashValue)
 	}
-	return hashes
 }
