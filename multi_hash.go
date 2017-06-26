@@ -51,8 +51,25 @@ func newMultiHash() (m *multiHash) {
 	return m
 }
 
-func (m *multiHash) print(w io.Writer, hashName string, name string) {
+func (m *multiHash) hash(hashName string) []byte {
+	hash := m.hashes[hashName]
+	return hash.Sum(nil)
+}
+
+func (m *multiHash) releaseHash(w io.Writer, hashName string, name string) {
 	hash := m.hashes[hashName]
 	checksum := hash.Sum(nil)
 	fmt.Fprintln(w, "", hex.EncodeToString(checksum), m.buffer.Len(), name)
+}
+
+func (m *multiHash) packagesHashes() map[string]string {
+	hashes := make(map[string]string)
+	for _, hashName := range supportedHashes {
+		hash := m.hashes[hashName]
+		if hashName == "MD5Sum" {
+			hashName = "MD5sum"
+		}
+		hashes[hashName] = hex.EncodeToString(hash.Sum(nil))
+	}
+	return hashes
 }

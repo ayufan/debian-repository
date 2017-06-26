@@ -10,9 +10,10 @@ import (
 
 	"strings"
 
+	"path/filepath"
+
 	"github.com/google/go-github/github"
 	"github.com/stapelberg/godebiancontrol"
-	"path/filepath"
 )
 
 type debKey struct {
@@ -22,6 +23,8 @@ type debKey struct {
 }
 
 type debPackage struct {
+	*debArchive
+
 	paragraphs godebiancontrol.Paragraph
 
 	repoName    string
@@ -30,9 +33,6 @@ type debPackage struct {
 	downloadURL string
 	fileSize    int
 	updatedAt   time.Time
-
-	control string
-	md5sum  string
 
 	loadOnce   sync.Once
 	loadStatus error
@@ -68,12 +68,12 @@ func (p *debPackage) version() string {
 }
 
 func (p *debPackage) load(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-	control, md5sum, err := readDebianArchive(*asset.BrowserDownloadURL)
+	debArchive, err := readDebArchive(*asset.BrowserDownloadURL)
 	if err != nil {
 		return err
 	}
 
-	paragraphs, err := godebiancontrol.Parse(bytes.NewBuffer(control))
+	paragraphs, err := godebiancontrol.Parse(bytes.NewBuffer(debArchive.Control))
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (p *debPackage) load(release *github.RepositoryRelease, asset *github.Relea
 
 	downloadURL := strings.Split(*asset.BrowserDownloadURL, "/")
 
-	p.control = string(control)
+	p.debArchive = debArchive
 	p.repoName = downloadURL[4]
 	p.tagName = downloadURL[7]
 	p.fileName = downloadURL[8]
@@ -96,7 +96,6 @@ func (p *debPackage) load(release *github.RepositoryRelease, asset *github.Relea
 	p.fileSize = *asset.Size
 	p.updatedAt = asset.UpdatedAt.Time
 	p.paragraphs = paragraphs[0]
-	p.md5sum = md5sum
 
 	// Validate package
 	if p.name() == "" {
@@ -107,9 +106,6 @@ func (p *debPackage) load(release *github.RepositoryRelease, asset *github.Relea
 	}
 	if p.version() == "" {
 		return errors.New("missing Version from control")
-	}
-	if p.md5sum == "" {
-		return errors.New("missing md5sum")
 	}
 	return nil
 }
@@ -135,13 +131,15 @@ func (p *debPackage) ensure(release *github.RepositoryRelease, asset *github.Rel
 }
 
 func (p *debPackage) write(w io.Writer, organizationWide bool) {
-	fmt.Fprint(w, p.control)
+	w.Write(p.Control)
 	if organizationWide {
 		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.repoName, p.tagName, p.fileName))
 	} else {
 		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.tagName, p.fileName))
 	}
 	fmt.Fprintln(w, "Size:", p.fileSize)
-	fmt.Fprintln(w, "MD5sum:", p.md5sum)
+	for hash, value := range p.Hashes {
+		fmt.Fprintln(w, hash+":", value)
+	}
 	fmt.Fprintln(w)
 }

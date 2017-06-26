@@ -3,19 +3,18 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/blakesmith/ar"
 )
 
-func enumerateDebianArchive(r io.Reader, fn func(name string, r *ar.Reader) error) error {
+func enumeratedebArchive(r io.Reader, fn func(name string, r io.Reader) error) error {
 	rd := ar.NewReader(r)
 
 	for {
@@ -52,7 +51,7 @@ func parseDebianBinary(r io.Reader) (string, error) {
 	return version, nil
 }
 
-func parseControlTarGz(url string, r io.Reader) ([]byte, error) {
+func parseControlTarGz(r io.Reader) ([]byte, error) {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err
@@ -75,7 +74,61 @@ func parseControlTarGz(url string, r io.Reader) ([]byte, error) {
 	return nil, errors.New("control not found in control.tar.gz")
 }
 
-func readDebianArchive(url string) (debianControl []byte, md5sum string, err error) {
+type debArchive struct {
+	Version string
+	Control []byte
+	Hashes  map[string]string
+}
+
+func (d *debArchive) readArchive(r io.Reader) error {
+	m := newMultiHash()
+	pr, pw := io.Pipe()
+	defer pr.Close()
+
+	go func() {
+		defer pw.Close()
+		io.Copy(io.MultiWriter(pw, m), r)
+	}()
+
+	err := enumeratedebArchive(pr, func(name string, r io.Reader) (err error) {
+		if name == "debian-binary" || name == "debian-binary/" {
+			d.Version, err = parseDebianBinary(r)
+		} else if name == "control.tar.gz" || name == "control.tar.gz/" {
+			d.Control, err = parseControlTarGz(r)
+		}
+		return
+	})
+
+	if err == nil {
+		if d.Version == "" || d.Control == nil {
+			err = errors.New("missing debian-binary or control.tar.gz")
+		}
+	}
+	if err == nil {
+		d.Hashes = m.packagesHashes()
+	}
+	return err
+}
+
+func (d *debArchive) readFromCache(tag string) error {
+	data, err := readFromCache(tag, "json")
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(data, d)
+}
+
+func (d *debArchive) writeToCache(tag string) error {
+	data, err := json.MarshalIndent(d, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return writeToCache(tag, "json", data)
+}
+
+func readDebArchive(url string) (deb *debArchive, err error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return
@@ -86,64 +139,24 @@ func readDebianArchive(url string) (debianControl []byte, md5sum string, err err
 	}
 	defer resp.Body.Close()
 
-	md5sum = resp.Header.Get("Etag")
+	md5sum := resp.Header.Get("Etag")
 	md5sum = strings.Trim(md5sum, `W/"`)
 	if md5sum == "" {
 		err = fmt.Errorf("missing md5sum")
 		return
 	}
 
-	repositoryCache := os.Getenv("REPOSITORY_CACHE")
-	if repositoryCache == "" {
-		repositoryCache = "tmp-cache"
-	}
-	cachePath := filepath.Join(repositoryCache, md5sum+"-control")
-
-	// read file from cache
-	debianControl, err = ioutil.ReadFile(cachePath)
-	if err == nil {
+	deb = &debArchive{}
+	if deb.readFromCache(md5sum) == nil {
 		return
 	}
 
-	debianVersion := ""
-
-	err = enumerateDebianArchive(resp.Body, func(name string, r *ar.Reader) error {
-		if name == "debian-binary" || name == "debian-binary/" {
-			version, err := parseDebianBinary(r)
-			debianVersion = version
-			return err
-		} else if name == "control.tar.gz" || name == "control.tar.gz/" {
-			if debianVersion == "" {
-				return errors.New("debian-binary has to be first")
-			}
-			control, err := parseControlTarGz(url, r)
-			if err != nil {
-				return err
-			}
-			debianControl = control
-			return io.EOF
-		} else {
-			return nil
-		}
-	})
-	if err == nil && (debianVersion == "" || debianControl == nil) {
-		err = errors.New("missing debian-binary or control.tar.gz")
-	}
+	deb = &debArchive{}
+	err = deb.readArchive(resp.Body)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	// write file to cache
-	f, err2 := ioutil.TempFile(repositoryCache, "control-etag-cache")
-	if err2 == nil {
-		defer f.Close()
-		defer os.Remove(f.Name())
-		_, err2 = f.Write(debianControl)
-		f.Close()
-	}
-	if err2 == nil {
-		os.Remove(cachePath)
-		os.Rename(f.Name(), cachePath)
-	}
+	deb.writeToCache(md5sum)
 	return
 }

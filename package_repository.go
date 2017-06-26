@@ -105,7 +105,7 @@ func (p *packageRepository) writeRelease(w io.Writer) {
 	fmt.Fprintln(w, "Date:", p.newestUpdatedAt().Format(time.RFC1123))
 	for _, name := range supportedHashes {
 		fmt.Fprint(w, name, ":\n")
-		packagesHash.print(w, name, "Packages")
-		packagesGzHash.print(w, name, "Packages.gz")
+		packagesHash.releaseHash(w, name, "Packages")
+		packagesGzHash.releaseHash(w, name, "Packages.gz")
 	}
 }

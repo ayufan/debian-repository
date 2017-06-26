@@ -124,17 +124,13 @@ func getPackages(w http.ResponseWriter, r *http.Request) (*packageRepository, er
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 
-	schema := r.Header.Get("X-Forwarded-Proto")
-	if schema == "" {
-		schema = "http"
-	}
-	url := schema + "://" + r.Host + strings.TrimSuffix(r.URL.String(), "/")
-
 	fmt.Fprintln(w, "<h2>Welcome to automated Debian Repository made on top of GitHub Releases</h2>")
 
+	fmt.Fprintln(w, "<ul>")
 	for _, allowedOwner := range allowedOwners {
-		fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/"+allowedOwner, url+"/"+allowedOwner)
+		fmt.Fprintf(w, `<li><a href=%q>%s</a></li>`, "/orgs/"+allowedOwner, allowedOwner)
 	}
+	fmt.Fprintln(w, "</ul>")
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
