@@ -166,6 +166,10 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/releases", url+"/releases")
 	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/pre-releases", url+"/pre-releases")
 	fmt.Fprintln(w)
+	fmt.Fprintln(w, "<h4>You can view all packages at:</h4>")
+	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/releases/Packages", url+"/releases/Packages")
+	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/pre-releases/Packages", url+"/pre-releases/Packages")
+	fmt.Fprintln(w)
 }
 
 func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
@@ -174,8 +178,17 @@ func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "List of packages:")
 
 	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		_, err := packages.get(release, asset)
-		fmt.Fprintln(w, "Package:", *release.TagName, "/", *asset.Name, "prerelase:", *release.Prerelease, "status:", err)
+		p, err := packages.get(release, asset)
+		fmt.Fprintln(w, "Package:", *release.TagName, "/", *asset.Name)
+		fmt.Fprintln(w, "\tIsPrerelease:", *release.Prerelease)
+		fmt.Fprintln(w, "\tStatus:", err)
+		if p != nil {
+			fmt.Fprintln(w, "\tRepo:", p.repoName)
+			fmt.Fprintln(w, "\tDownloadURL:", p.downloadURL)
+			fmt.Fprintln(w, "\tSize:", p.fileSize)
+			fmt.Fprintln(w, "\tUpdatedAt:", p.updatedAt)
+		}
+		fmt.Fprintln(w)
 		return nil
 	})
 	if err != nil {
