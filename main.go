@@ -121,6 +121,22 @@ func getPackages(w http.ResponseWriter, r *http.Request) (*packageRepository, er
 	return repository, err
 }
 
+func mainHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html")
+
+	schema := r.Header.Get("X-Forwarded-Proto")
+	if schema == "" {
+		schema = "http"
+	}
+	url := schema + "://" + r.Host + strings.TrimSuffix(r.URL.String(), "/")
+
+	fmt.Fprintln(w, "<h2>Welcome to automated Debian Repository made on top of GitHub Releases</h2>")
+
+	for _, allowedOwner := range allowedOwners {
+		fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/"+allowedOwner, url+"/"+allowedOwner)
+	}
+}
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -324,6 +340,8 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/settings/cache/clear", clearHandler).Methods("GET", "POST")
+
+	r.HandleFunc("/", mainHandler).Methods("GET")
 
 	r.HandleFunc("/orgs/{owner}", indexHandler).Methods("GET")
 	r.HandleFunc("/orgs/{owner}/", indexHandler).Methods("GET")
