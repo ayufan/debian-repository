@@ -353,7 +353,7 @@ func main() {
 	r.HandleFunc("/orgs/{owner}/{distribution}/Release", releaseHandler).Methods("GET")
 	r.HandleFunc("/orgs/{owner}/{distribution}/Release.gpg", releaseGpgHandler).Methods("GET")
 	r.HandleFunc("/orgs/{owner}/{distribution}/InRelease", inReleaseHandler).Methods("GET")
-	r.HandleFunc("/orgs/{owner}/{distribution}/download/{repo}/{tag_name}/{file_name}", downloadHandler).Methods("GET")
+	r.HandleFunc("/orgs/{owner}/{distribution}/download/{repo}/{tag_name}/{file_name}", downloadHandler).Methods("GET", "HEAD")
 
 	r.HandleFunc("/{owner}/{repo}", indexHandler).Methods("GET")
 	r.HandleFunc("/{owner}/{repo}/", indexHandler).Methods("GET")
@@ -365,7 +365,7 @@ func main() {
 	r.HandleFunc("/{owner}/{repo}/{distribution}/Release", releaseHandler).Methods("GET")
 	r.HandleFunc("/{owner}/{repo}/{distribution}/Release.gpg", releaseGpgHandler).Methods("GET")
 	r.HandleFunc("/{owner}/{repo}/{distribution}/InRelease", inReleaseHandler).Methods("GET")
-	r.HandleFunc("/{owner}/{repo}/{distribution}/download/{tag_name}/{file_name}", downloadHandler).Methods("GET")
+	r.HandleFunc("/{owner}/{repo}/{distribution}/download/{tag_name}/{file_name}", downloadHandler).Methods("GET", "HEAD")
 
 	loggingHandler := NewApacheLoggingHandler(r, os.Stdout)
 	http.Handle("/", loggingHandler)
