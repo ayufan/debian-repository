@@ -10,10 +10,9 @@ import (
 
 	"strings"
 
-	"path/filepath"
-
 	"github.com/google/go-github/github"
 	"github.com/stapelberg/godebiancontrol"
+	"path/filepath"
 )
 
 type debKey struct {
@@ -143,6 +142,6 @@ func (p *debPackage) write(w io.Writer, organizationWide bool) {
 		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.tagName, p.fileName))
 	}
 	fmt.Fprintln(w, "Size:", p.fileSize)
-	fmt.Fprintln(w, "MD5Sum:", p.md5sum)
+	fmt.Fprintln(w, "MD5sum:", p.md5sum)
 	fmt.Fprintln(w)
 }
