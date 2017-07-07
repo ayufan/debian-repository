@@ -285,7 +285,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	url := fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s",
 		vars["owner"], vars["repo"],
 		vars["tag_name"], vars["file_name"])
-	http.Redirect(w, r, url, http.StatusPermanentRedirect)
+	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
 
 func clearHandler(w http.ResponseWriter, r *http.Request) {
