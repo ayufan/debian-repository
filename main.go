@@ -8,6 +8,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -279,13 +281,28 @@ func inReleaseHandler(w http.ResponseWriter, r *http.Request) {
 	repository.writeRelease(wd)
 }
 
+var httpProxy = httputil.ReverseProxy{
+	Director: func(*http.Request) {},
+}
+
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	url := fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s",
+	realURL := fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/%s",
 		vars["owner"], vars["repo"],
 		vars["tag_name"], vars["file_name"])
-	http.Redirect(w, r, url, http.StatusMovedPermanently)
+
+	parsedURL, err := url.Parse(realURL)
+	if handleError(w, err) {
+		return
+	}
+
+	newReq := *r
+	newReq.URL = parsedURL
+	newReq.Host = ""
+	newReq.RequestURI = ""
+
+	httpProxy.ServeHTTP(w, &newReq)
 }
 
 func clearHandler(w http.ResponseWriter, r *http.Request) {
