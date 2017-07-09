@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -292,13 +291,29 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		vars["owner"], vars["repo"],
 		vars["tag_name"], vars["file_name"])
 
-	parsedURL, err := url.Parse(realURL)
+	req, err := http.NewRequest("GET", realURL, nil)
+	if handleError(w, err) {
+		return
+	}
+
+	res, err := http.DefaultTransport.RoundTrip(req)
+	if handleError(w, err) {
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode/100 != 3 {
+		handleError(w, fmt.Errorf("expected 3xx, but got: %d: %s", res.StatusCode, res.Status))
+		return
+	}
+
+	location, err := res.Location()
 	if handleError(w, err) {
 		return
 	}
 
 	newReq := *r
-	newReq.URL = parsedURL
+	newReq.URL = location
 	newReq.Host = ""
 	newReq.RequestURI = ""
 
