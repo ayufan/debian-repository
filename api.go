@@ -12,6 +12,8 @@ import (
 
 var requestCache *cache.Cache
 
+var listOptions = github.ListOptions{PerPage: 10000}
+
 func listReleasesOneRepo(owner, repo string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
 	cached, found := requestCache.Get(filepath.Join(owner, repo))
 	if found {
@@ -20,7 +22,7 @@ func listReleasesOneRepo(owner, repo string) (releases []github.RepositoryReleas
 	}
 
 	start := time.Now()
-	releases, resp, err = client.Repositories.ListReleases(owner, repo, nil)
+	releases, resp, err = client.Repositories.ListReleases(owner, repo, &listOptions)
 
 	var rate github.Rate
 	if resp != nil {
@@ -50,7 +52,7 @@ func listProjects(owner string) (repos []github.Repository, resp *github.Respons
 	}
 
 	start := time.Now()
-	repos, resp, err = client.Repositories.List(owner, nil)
+	repos, resp, err = client.Repositories.List(owner, &github.RepositoryListOptions{ListOptions: listOptions})
 
 	var rate github.Rate
 	if resp != nil {
