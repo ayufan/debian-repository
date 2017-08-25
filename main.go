@@ -234,7 +234,7 @@ func packagesGzHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Encoding", "gzip")
+	w.Header().Set("Content-Type", "binary/octet-stream")
 
 	repository.writeGz(w)
 }
