@@ -29,7 +29,7 @@ type ApacheLogRecord struct {
 }
 
 func (r *ApacheLogRecord) Log(out io.Writer) {
-	timeFormatted := r.time.Format("02/Jan/2006 03:04:05")
+	timeFormatted := r.time.Format(time.RFC822Z)
 	fmt.Fprintf(out, apacheFormatPattern, r.ip, timeFormatted, r.method,
 		r.uri, r.protocol, r.status, r.responseBytes, r.referer, r.userAgent,
 		r.elapsedTime.Seconds())
