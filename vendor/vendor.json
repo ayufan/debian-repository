@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "xrQsQCgesrkSUKxt2EQtXXw2sn4=",
+			"path": "github.com/Tomasen/realip",
+			"revision": "b5850897b7b539a1c9f22cdaa3b547d1bd453db8",
+			"revisionTime": "2017-12-12T13:33:04Z"
+		},
+		{
 			"checksumSHA1": "Hc4yYaBrUJXrXge+C5PecOIFX84=",
 			"path": "github.com/blakesmith/ar",
 			"revision": "8bd4349a67f2533b078dbc524689d15dba0f4659",

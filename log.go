@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Tomasen/realip"
 )
 
 // https://httpd.apache.org/docs/2.2/logs.html#combined + execution time.
@@ -57,7 +59,7 @@ func NewApacheLoggingHandler(handler http.Handler, out io.Writer) http.Handler {
 }
 
 func (h *ApacheLoggingHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	clientIP := r.RemoteAddr
+	clientIP := realip.FromRequest(r)
 	if colon := strings.LastIndex(clientIP, ":"); colon != -1 {
 		clientIP = clientIP[:colon]
 	}
