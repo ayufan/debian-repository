@@ -29,6 +29,8 @@ var httpAddr = flag.String("httpAddr", ":5000", "HTTP Address to listen to")
 var requestCacheExpiration = flag.Duration("requestCache", 24*time.Hour, "Request cache expiration timeout")
 var packageLruCache = flag.Int("packageLruCache", 10000, "Number of packages stored in memory")
 
+var parseDeb = flag.String("parseDeb", "", "Try to parse a debian archive")
+
 var allowedOwners []string
 var client *github.Client
 var signingKey *openpgp.Entity
@@ -330,6 +332,23 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
+
+	if *parseDeb != "" {
+		file, err := os.Open(*parseDeb)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer file.Close()
+
+		deb := &debArchive{}
+		err = deb.parseArchive(file)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		log.Println(string(deb.Control))
+		return
+	}
 
 	if githubToken := os.Getenv("GITHUB_TOKEN"); githubToken != "" {
 		ctx := context.Background()

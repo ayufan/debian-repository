@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -10,9 +11,8 @@ import (
 	"net/http"
 	"strings"
 
-	"bytes"
-
 	"github.com/blakesmith/ar"
+	"github.com/ulikunitz/xz"
 )
 
 func enumerateDebArchive(r io.Reader, fn func(name string, r io.Reader) error) error {
@@ -52,14 +52,8 @@ func readDebianBinary(r io.Reader) (string, error) {
 	return version, nil
 }
 
-func readControlTarGz(r io.Reader) ([]byte, error) {
-	gz, err := gzip.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-	defer gz.Close()
-
-	rd := tar.NewReader(gz)
+func readControlTar(r io.Reader) ([]byte, error) {
+	rd := tar.NewReader(r)
 	for {
 		header, err := rd.Next()
 		if err == io.EOF {
@@ -73,6 +67,25 @@ func readControlTarGz(r io.Reader) ([]byte, error) {
 		}
 	}
 	return nil, errors.New("control not found in control.tar.gz")
+}
+
+func readControlTarGz(r io.Reader) ([]byte, error) {
+	gz, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	defer gz.Close()
+
+	return readControlTar(gz)
+}
+
+func readControlTarXz(r io.Reader) ([]byte, error) {
+	xz, err := xz.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return readControlTar(xz)
 }
 
 type debArchive struct {
@@ -96,13 +109,15 @@ func (d *debArchive) parseArchive(r io.Reader) error {
 			debianVersion, err = readDebianBinary(r)
 		} else if name == "control.tar.gz" || name == "control.tar.gz/" {
 			d.Control, err = readControlTarGz(r)
+		} else if name == "control.tar.xz" || name == "control.tar.xz/" {
+			d.Control, err = readControlTarXz(r)
 		}
 		return
 	})
 
 	if err == nil {
 		if debianVersion == "" || d.Control == nil {
-			err = errors.New("missing debian-binary or control.tar.gz")
+			err = errors.New("missing debian-binary or control.tar.gz/xz")
 		}
 	}
 	if err == nil {
