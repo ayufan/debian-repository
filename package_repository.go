@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/github"
@@ -43,6 +44,7 @@ func (a debPackageSlice) Less(i, j int) bool {
 type packageRepository struct {
 	debs             debPackageSlice
 	loaded           map[debKey]struct{}
+	owner, repo      string
 	organizationWide bool
 }
 
@@ -92,6 +94,32 @@ func (p *packageRepository) newestUpdatedAt() (result time.Time) {
 	return
 }
 
+func (p *packageRepository) getOrigin() string {
+	components := []string{
+		"GITHUB", "AYUFAN", "DEB",
+	}
+	if p.owner != "" {
+		components = append(components, p.owner)
+	}
+	if p.repo != "" {
+		components = append(components, p.repo)
+	}
+	return strings.Join(components, "-")
+}
+
+func (p *packageRepository) getDescription() string {
+	components := []string{
+		"https://github.com",
+	}
+	if p.owner != "" {
+		components = append(components, p.owner)
+	}
+	if p.repo != "" {
+		components = append(components, p.repo)
+	}
+	return strings.Join(components, "/")
+}
+
 func (p *packageRepository) writeRelease(w io.Writer) {
 	packagesHash := newMultiHash()
 	packagesGzHash := newMultiHash()
@@ -102,6 +130,8 @@ func (p *packageRepository) writeRelease(w io.Writer) {
 	p.write(io.MultiWriter(packagesHash, packagesGz))
 	packagesGz.Close()
 
+	fmt.Fprintln(w, "Origin:", p.getOrigin())
+	fmt.Fprintln(w, "Description:", p.getDescription())
 	fmt.Fprintln(w, "Date:", p.newestUpdatedAt().Format(time.RFC1123))
 	for _, name := range supportedHashes {
 		fmt.Fprint(w, name, ":\n")

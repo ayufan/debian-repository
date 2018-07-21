@@ -111,6 +111,8 @@ func getPackages(w http.ResponseWriter, r *http.Request) (*packageRepository, er
 	vars := mux.Vars(r)
 
 	repository := &packageRepository{
+		owner:            vars["owner"],
+		repo:             vars["repo"],
 		organizationWide: vars["repo"] == "",
 	}
 
