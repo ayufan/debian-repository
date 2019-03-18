@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"strconv"
 	"strings"
 
 	"time"
@@ -74,36 +73,31 @@ func iteratePackages(releases []github.RepositoryRelease, distribution string, f
 	return nil
 }
 
-func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error) error {
+func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(ghPackage github_client.Package) error) error {
 	vars := mux.Vars(r)
 
 	if !isOwnerAllowed(vars["owner"]) {
 		return fmt.Errorf("%q is not allowed. Please add it to ALLOWED_ORGS", vars["owner"])
 	}
 
-	releases, resp, err := githubAPI.ListReleases(vars["owner"], vars["repo"])
-	if resp != nil {
-		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Rate.Limit))
-		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(resp.Rate.Remaining))
-		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(resp.Rate.Reset.Unix(), 10))
-	}
-
-	// do trigger loading of all packages
-	err = iteratePackages(releases, vars["distribution"], func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		go func(release github.RepositoryRelease, asset github.ReleaseAsset) {
-			packagesCache.Get(&release, &asset)
-		}(*release, *asset)
-		return nil
-	})
+	packages, err := githubAPI.ListPackages(vars["owner"], vars["repo"], vars["distribution"])
 	if err != nil {
 		return err
 	}
 
-	// do actual loading
-	err = iteratePackages(releases, vars["distribution"], fn)
-	if err != nil {
-		return err
+	// trigger loading of all packages
+	for _, ghPackage := range packages {
+		packagesCache.Get(ghPackage)
 	}
+
+	// do actual iteration of packages
+	for _, ghPackage := range packages {
+		err := fn(ghPackage)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -112,8 +106,8 @@ func getPackages(w http.ResponseWriter, r *http.Request) (*deb.Repository, error
 
 	repository := deb.NewRepository(vars["owner"], vars["repo"])
 
-	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		deb, err := packagesCache.Get(release, asset)
+	err := enumeratePackages(w, r, func(ghPackage github_client.Package) error {
+		deb, err := packagesCache.Get(ghPackage)
 		if err == nil {
 			repository.Add(deb)
 		}
@@ -193,10 +187,10 @@ func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintln(w, "List of packages:")
 
-	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		p, err := packagesCache.Get(release, asset)
-		fmt.Fprintln(w, "Package:", *release.TagName, "/", *asset.Name)
-		fmt.Fprintln(w, "\tIsPrerelease:", *release.Prerelease)
+	err := enumeratePackages(w, r, func(ghPackage github_client.Package) error {
+		p, err := packagesCache.Get(ghPackage)
+		fmt.Fprintln(w, "Package:", *ghPackage.Release.TagName, "/", *ghPackage.Asset.Name)
+		fmt.Fprintln(w, "\tIsPrerelease:", *ghPackage.Release.Prerelease)
 		fmt.Fprintln(w, "\tStatus:", err)
 		if p != nil {
 			fmt.Fprintln(w, "\tRepo:", p.RepoName)
@@ -381,7 +375,6 @@ func main() {
 	}
 
 	allowedOwners = strings.Split(os.Getenv("ALLOWED_ORGS"), ",")
-
 	if len(allowedOwners) == 0 {
 		log.Println("Allowed owners: none")
 	} else {

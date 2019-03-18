@@ -5,9 +5,9 @@ import (
 	"sync"
 
 	"github.com/golang/groupcache/lru"
-	"github.com/google/go-github/github"
 
 	"github.com/ayufan/debian-repository/internal/deb"
+	"github.com/ayufan/debian-repository/internal/github_client"
 )
 
 type Cache struct {
@@ -28,13 +28,13 @@ func (d *Cache) find(id int) *deb.Package {
 	return debPackage.(*deb.Package)
 }
 
-func (d *Cache) Get(release *github.RepositoryRelease, asset *github.ReleaseAsset) (*deb.Package, error) {
-	if asset == nil || asset.ID == nil {
+func (d *Cache) Get(ghPackage github_client.Package) (*deb.Package, error) {
+	if ghPackage.Asset == nil || ghPackage.Asset.ID == nil {
 		return nil, errors.New("asset is null")
 	}
 
-	deb := d.find(*asset.ID)
-	return deb, deb.Ensure(release, asset)
+	deb := d.find(*ghPackage.Asset.ID)
+	return deb, deb.Ensure(ghPackage.Release, ghPackage.Asset)
 }
 
 func (d *Cache) Clear() {
