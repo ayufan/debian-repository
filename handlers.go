@@ -122,9 +122,14 @@ func packagesGzHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "binary/octet-stream")
+	err = http_helpers.WriteGz(w, func(body io.Writer) error {
+		repository.Write(body)
+		return nil
+	})
 
-	repository.WriteGz(w)
+	if http_helpers.HandleError(w, err) {
+		return
+	}
 }
 
 func releaseHandler(w http.ResponseWriter, r *http.Request) {

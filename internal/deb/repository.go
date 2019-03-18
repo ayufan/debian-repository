@@ -44,13 +44,6 @@ func (p *Repository) Write(w io.Writer) {
 	}
 }
 
-func (p *Repository) WriteGz(w io.Writer) {
-	gz := gzip.NewWriter(w)
-	defer gz.Close()
-
-	p.Write(gz)
-}
-
 func (p *Repository) newestUpdatedAt() (result time.Time) {
 	for _, deb := range p.debs {
 		if result.Sub(deb.UpdatedAt) < 0 {
