@@ -18,6 +18,7 @@ import (
 )
 
 var Suites = []string{"bionic", "xenial"}
+var Architectures = []string{"arm64", "armhf", "amd64"}
 
 type Key struct {
 	Name         string

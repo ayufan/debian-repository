@@ -30,7 +30,17 @@ type RepositoryFile struct {
 
 func (p *Repository) Architectures() map[string]struct{} {
 	archs := make(map[string]struct{})
+
+	// get a default architectures
+	for _, arch := range Architectures {
+		archs[arch] = struct{}{}
+	}
+
+	// get all other architectures
 	for _, deb := range p.debs {
+		if deb.Architecture() == "all" {
+			continue
+		}
 		archs[deb.Architecture()] = struct{}{}
 	}
 	return archs

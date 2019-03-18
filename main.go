@@ -78,6 +78,13 @@ func main() {
 		log.Println("Allowed suites:", strings.Join(deb.Suites, ", "))
 	}
 
+	deb.Architectures = strings.Split(*architectures, ",")
+	if len(deb.Architectures) == 0 {
+		log.Println("Default architectures: none")
+	} else {
+		log.Println("Default architectures:", strings.Join(deb.Architectures, ", "))
+	}
+
 	allowedOwners = strings.Split(os.Getenv("ALLOWED_ORGS"), ",")
 	if len(allowedOwners) == 0 {
 		log.Println("Allowed owners: none")
