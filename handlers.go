@@ -122,8 +122,6 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	println("FileHandler", r.RequestURI, vars["file"])
-
 	files := repository.AllFiles()
 	file := files[vars["file"]]
 	if file == nil {
