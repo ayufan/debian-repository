@@ -13,6 +13,8 @@ import (
 
 	"github.com/blakesmith/ar"
 	"github.com/ulikunitz/xz"
+
+	"github.com/ayufan/debian-repository/internal/repository_cache"
 )
 
 func enumerateDebArchive(r io.Reader, fn func(name string, r io.Reader) error) error {
@@ -129,7 +131,7 @@ func (d *debArchive) parseArchive(r io.Reader) error {
 }
 
 func (d *debArchive) readFromCache(tag string) error {
-	data, err := readFromCache(tag, "control")
+	data, err := repository_cache.Read(tag, "control")
 	if err != nil {
 		return err
 	}
@@ -139,7 +141,7 @@ func (d *debArchive) readFromCache(tag string) error {
 }
 
 func (d *debArchive) writeToCache(tag string) error {
-	return writeToCache(tag, "control", d.Control)
+	return repository_cache.Write(tag, "control", d.Control)
 }
 
 func readDebArchive(url string) (deb *debArchive, err error) {

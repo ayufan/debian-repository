@@ -1,4 +1,4 @@
-package main
+package repository_cache
 
 import (
 	"io/ioutil"
@@ -15,12 +15,12 @@ func init() {
 	}
 }
 
-func readFromCache(tag, name string) ([]byte, error) {
+func Read(tag, name string) ([]byte, error) {
 	cachePath := filepath.Join(repositoryCache, tag+"."+name)
 	return ioutil.ReadFile(cachePath)
 }
 
-func writeToCache(tag, name string, content []byte) error {
+func Write(tag, name string, content []byte) error {
 	cachePath := filepath.Join(repositoryCache, tag+"."+name)
 
 	// create temp file
