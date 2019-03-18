@@ -202,10 +202,10 @@ func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "\tIsPrerelease:", *release.Prerelease)
 		fmt.Fprintln(w, "\tStatus:", err)
 		if p != nil {
-			fmt.Fprintln(w, "\tRepo:", p.repoName)
-			fmt.Fprintln(w, "\tDownloadURL:", p.downloadURL)
-			fmt.Fprintln(w, "\tSize:", p.fileSize)
-			fmt.Fprintln(w, "\tUpdatedAt:", p.updatedAt)
+			fmt.Fprintln(w, "\tRepo:", p.RepoName)
+			fmt.Fprintln(w, "\tDownloadURL:", p.DownloadURL)
+			fmt.Fprintln(w, "\tSize:", p.FileSize)
+			fmt.Fprintln(w, "\tUpdatedAt:", p.UpdatedAt)
 		}
 		fmt.Fprintln(w)
 		return nil

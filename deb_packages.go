@@ -6,6 +6,8 @@ import (
 
 	"github.com/golang/groupcache/lru"
 	"github.com/google/go-github/github"
+
+	"github.com/ayufan/debian-repository/internal/deb_package"
 )
 
 type debPackages struct {
@@ -15,26 +17,26 @@ type debPackages struct {
 
 var packages *debPackages
 
-func (d *debPackages) find(id int) *debPackage {
+func (d *debPackages) find(id int) *deb_package.Package {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
 	deb, found := d.cache.Get(id)
 	if !found {
-		deb = &debPackage{}
+		deb = &deb_package.Package{}
 		d.cache.Add(id, deb)
 	}
 
-	return deb.(*debPackage)
+	return deb.(*deb_package.Package)
 }
 
-func (d *debPackages) get(release *github.RepositoryRelease, asset *github.ReleaseAsset) (*debPackage, error) {
+func (d *debPackages) get(release *github.RepositoryRelease, asset *github.ReleaseAsset) (*deb_package.Package, error) {
 	if asset == nil || asset.ID == nil {
 		return nil, errors.New("asset is null")
 	}
 
 	deb := d.find(*asset.ID)
-	return deb, deb.ensure(release, asset)
+	return deb, deb.Ensure(release, asset)
 }
 
 func (d *debPackages) clear() {

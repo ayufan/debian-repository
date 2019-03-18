@@ -11,41 +11,13 @@ import (
 
 	"github.com/google/go-github/github"
 
+	"github.com/ayufan/debian-repository/internal/deb_package"
 	"github.com/ayufan/debian-repository/internal/multi_hash"
 )
 
-type debPackageSlice []*debPackage
-
-func (a debPackageSlice) Len() int {
-	return len(a)
-}
-
-func (a debPackageSlice) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a debPackageSlice) Less(i, j int) bool {
-	if a[i].name() < a[j].name() {
-		return true
-	} else if a[i].name() > a[j].name() {
-		return false
-	}
-	if a[i].version() < a[j].version() {
-		return true
-	} else if a[i].version() > a[j].version() {
-		return false
-	}
-	if a[i].architecture() < a[j].architecture() {
-		return true
-	} else if a[i].architecture() > a[j].architecture() {
-		return false
-	}
-	return false
-}
-
 type packageRepository struct {
-	debs             debPackageSlice
-	loaded           map[debKey]struct{}
+	debs             deb_package.PackageSlice
+	loaded           map[deb_package.Key]struct{}
 	owner, repo      string
 	organizationWide bool
 }
@@ -57,15 +29,15 @@ func (p *packageRepository) add(release *github.RepositoryRelease, asset *github
 	}
 
 	// don't add the same version, again
-	if _, ok := p.loaded[deb.key()]; ok {
-		log.Println("ignore", deb.key())
+	if _, ok := p.loaded[deb.Key()]; ok {
+		log.Println("ignore", deb.Key())
 		return nil
 	}
 
 	if p.loaded == nil {
-		p.loaded = make(map[debKey]struct{})
+		p.loaded = make(map[deb_package.Key]struct{})
 	}
-	p.loaded[deb.key()] = struct{}{}
+	p.loaded[deb.Key()] = struct{}{}
 	p.debs = append(p.debs, deb)
 	return nil
 }
@@ -76,7 +48,7 @@ func (p *packageRepository) sort() {
 
 func (p *packageRepository) write(w io.Writer) {
 	for _, deb := range p.debs {
-		deb.write(w, p.organizationWide)
+		deb.Write(w, p.organizationWide)
 	}
 }
 
@@ -89,8 +61,8 @@ func (p *packageRepository) writeGz(w io.Writer) {
 
 func (p *packageRepository) newestUpdatedAt() (result time.Time) {
 	for _, deb := range p.debs {
-		if result.Sub(deb.updatedAt) < 0 {
-			result = deb.updatedAt
+		if result.Sub(deb.UpdatedAt) < 0 {
+			result = deb.UpdatedAt
 		}
 	}
 	return
