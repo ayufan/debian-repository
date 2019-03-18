@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/clearsign"
 
+	"github.com/ayufan/debian-repository/internal/deb"
 	"github.com/ayufan/debian-repository/internal/github_client"
 )
 
@@ -335,14 +336,7 @@ func main() {
 	flag.Parse()
 
 	if *parseDeb != "" {
-		file, err := os.Open(*parseDeb)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		defer file.Close()
-
-		deb := &debArchive{}
-		err = deb.parseArchive(file)
+		deb, err := deb.ReadFromFile(*parseDeb)
 		if err != nil {
 			log.Fatalln(err)
 		}

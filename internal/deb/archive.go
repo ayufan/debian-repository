@@ -1,4 +1,4 @@
-package main
+package deb
 
 import (
 	"archive/tar"
@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/blakesmith/ar"
@@ -91,11 +92,11 @@ func readControlTarXz(r io.Reader) ([]byte, error) {
 	return readControlTar(xz)
 }
 
-type debArchive struct {
+type Archive struct {
 	Control []byte
 }
 
-func (d *debArchive) parseArchive(r io.Reader) error {
+func (d *Archive) parseArchive(r io.Reader) error {
 	m := multi_hash.New()
 	pr, pw := io.Pipe()
 	defer pr.Close()
@@ -131,7 +132,7 @@ func (d *debArchive) parseArchive(r io.Reader) error {
 	return err
 }
 
-func (d *debArchive) readFromCache(tag string) error {
+func (d *Archive) readFromCache(tag string) error {
 	data, err := repository_cache.Read(tag, "control")
 	if err != nil {
 		return err
@@ -141,38 +142,64 @@ func (d *debArchive) readFromCache(tag string) error {
 	return nil
 }
 
-func (d *debArchive) writeToCache(tag string) error {
+func (d *Archive) writeToCache(tag string) error {
 	return repository_cache.Write(tag, "control", d.Control)
 }
 
-func readDebArchive(url string) (deb *debArchive, err error) {
+func Read(r io.Reader) (*Archive, error) {
+	deb := &Archive{}
+	err := deb.parseArchive(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return deb, nil
+}
+
+func ReadFromCache(md5sum string) *Archive {
+	deb := &Archive{}
+	if deb.readFromCache(md5sum) != nil {
+		return nil
+	}
+
+	return deb
+}
+
+func ReadFromFile(fileName string) (*Archive, error) {
+	file, err := os.Open(fileName)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	return Read(file)
+}
+
+func ReadFromURL(url string) (*Archive, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("http get: %q", err)
 	}
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("http status code: %d %s", resp.StatusCode, resp.Status)
-		return
+		return nil, fmt.Errorf("http status code: %d %s", resp.StatusCode, resp.Status)
 	}
 	defer resp.Body.Close()
 
 	md5sum := resp.Header.Get("Etag")
 	md5sum = strings.Trim(md5sum, `W/"`)
 	if md5sum == "" {
-		err = fmt.Errorf("missing md5sum")
-		return
+		return nil, fmt.Errorf("missing md5sum")
 	}
 
-	deb = &debArchive{}
-	if deb.readFromCache(md5sum) == nil {
-		return
+	if deb := ReadFromCache(md5sum); deb != nil {
+		return deb, nil
 	}
 
-	err = deb.parseArchive(resp.Body)
+	deb, err := Read(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	deb.writeToCache(md5sum)
-	return
+	return deb, nil
 }

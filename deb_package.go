@@ -14,6 +14,8 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/stapelberg/godebiancontrol"
+
+	"github.com/ayufan/debian-repository/internal/deb"
 )
 
 type debKey struct {
@@ -23,7 +25,7 @@ type debKey struct {
 }
 
 type debPackage struct {
-	*debArchive
+	*deb.Archive
 
 	paragraphs godebiancontrol.Paragraph
 
@@ -68,7 +70,7 @@ func (p *debPackage) version() string {
 }
 
 func (p *debPackage) load(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-	debArchive, err := readDebArchive(*asset.BrowserDownloadURL)
+	debArchive, err := deb.ReadFromURL(*asset.BrowserDownloadURL)
 	if err != nil {
 		return err
 	}
@@ -88,7 +90,7 @@ func (p *debPackage) load(release *github.RepositoryRelease, asset *github.Relea
 
 	downloadURL := strings.Split(*asset.BrowserDownloadURL, "/")
 
-	p.debArchive = debArchive
+	p.Archive = debArchive
 	p.repoName = downloadURL[4]
 	p.tagName = downloadURL[7]
 	p.fileName = downloadURL[8]
