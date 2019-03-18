@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -16,13 +15,11 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/armor"
-	"golang.org/x/crypto/openpgp/clearsign"
 
 	"github.com/ayufan/debian-repository/internal/apache_log"
 	"github.com/ayufan/debian-repository/internal/deb"
 	"github.com/ayufan/debian-repository/internal/deb_cache"
+	"github.com/ayufan/debian-repository/internal/deb_key"
 	"github.com/ayufan/debian-repository/internal/github_client"
 	"github.com/ayufan/debian-repository/internal/http_helpers"
 )
@@ -34,9 +31,9 @@ var packageLruCache = flag.Int("packageLruCache", 10000, "Number of packages sto
 var parseDeb = flag.String("parseDeb", "", "Try to parse a debian archive")
 
 var allowedOwners []string
-var signingKey *openpgp.Entity
 var githubAPI *github_client.API
 var packagesCache *deb_cache.Cache
+var signingKey *deb_key.Key
 
 func isOwnerAllowed(owner string) bool {
 	for _, allowedOwner := range allowedOwners {
@@ -216,13 +213,10 @@ func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func archiveKeyHandler(w http.ResponseWriter, r *http.Request) {
-	wd, err := armor.Encode(w, openpgp.PublicKeyType, nil)
+	err := signingKey.WriteKey(w)
 	if http_helpers.HandleError(w, err) {
 		return
 	}
-	defer wd.Close()
-
-	signingKey.Serialize(wd)
 }
 
 func packagesHandler(w http.ResponseWriter, r *http.Request) {
@@ -260,15 +254,12 @@ func releaseGpgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pr, pw := io.Pipe()
-	defer pr.Close()
+	err = signingKey.EncodeWithArmor(w, func(wd io.Writer) error {
+		repository.WriteRelease(wd)
+		return nil
+	})
 
-	go func() {
-		defer pw.Close()
-		repository.WriteRelease(pw)
-	}()
-
-	openpgp.ArmoredDetachSign(w, signingKey, pr, nil)
+	http_helpers.HandleError(w, err)
 }
 
 func inReleaseHandler(w http.ResponseWriter, r *http.Request) {
@@ -277,13 +268,12 @@ func inReleaseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wd, err := clearsign.Encode(w, signingKey.PrivateKey, nil)
-	if http_helpers.HandleError(w, err) {
-		return
-	}
-	defer wd.Close()
+	err = signingKey.Encode(w, func(wd io.Writer) error {
+		repository.WriteRelease(wd)
+		return nil
+	})
 
-	repository.WriteRelease(wd)
+	http_helpers.HandleError(w, err)
 }
 
 var httpProxy = httputil.ReverseProxy{
@@ -334,39 +324,7 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	packagesCache.Clear()
 }
 
-func main() {
-	flag.Parse()
-
-	if *parseDeb != "" {
-		deb, err := deb.ReadFromFile(*parseDeb)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		log.Println(string(deb.Control))
-		return
-	}
-
-	githubAPI = github_client.New(os.Getenv("GITHUB_TOKEN"), *requestCacheExpiration)
-	packagesCache = deb_cache.New(*packageLruCache)
-
-	entityList, err := openpgp.ReadArmoredKeyRing(bytes.NewBufferString(os.Getenv("GPG_KEY")))
-	if err != nil {
-		log.Fatalln("Failed to parse environment GPG_KEY:", err)
-	}
-	if len(entityList) != 1 {
-		log.Fatalln("Exactly one entity should be in GPG_KEY. Was:", len(entityList))
-	}
-
-	signingKey = entityList[0]
-	allowedOwners = strings.Split(os.Getenv("ALLOWED_ORGS"), ",")
-
-	if len(allowedOwners) == 0 {
-		log.Println("Allowed owners: none")
-	} else {
-		log.Println("Allowed owners:", strings.Join(allowedOwners, ", "))
-	}
-
+func createRoutes() *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/settings/cache/clear", clearHandler).Methods("GET", "POST")
 
@@ -396,7 +354,43 @@ func main() {
 	r.HandleFunc("/{owner}/{repo}/{distribution}/InRelease", inReleaseHandler).Methods("GET")
 	r.HandleFunc("/{owner}/{repo}/{distribution}/download/{tag_name}/{file_name}", downloadHandler).Methods("GET", "HEAD")
 
-	loggingHandler := apache_log.NewApacheLoggingHandler(r, os.Stdout)
+	return r
+}
+
+func main() {
+	var err error
+
+	flag.Parse()
+
+	if *parseDeb != "" {
+		deb, err := deb.ReadFromFile(*parseDeb)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		log.Println(string(deb.Control))
+		return
+	}
+
+	githubAPI = github_client.New(os.Getenv("GITHUB_TOKEN"), *requestCacheExpiration)
+	packagesCache = deb_cache.New(*packageLruCache)
+
+	signingKey, err = deb_key.New(os.Getenv("GPG_KEY"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	allowedOwners = strings.Split(os.Getenv("ALLOWED_ORGS"), ",")
+
+	if len(allowedOwners) == 0 {
+		log.Println("Allowed owners: none")
+	} else {
+		log.Println("Allowed owners:", strings.Join(allowedOwners, ", "))
+	}
+
+	routes := createRoutes()
+
+	loggingHandler := apache_log.NewApacheLoggingHandler(routes, os.Stdout)
 	http.Handle("/", loggingHandler)
 
 	log.Println("Starting web-server on", *httpAddr, "...")
