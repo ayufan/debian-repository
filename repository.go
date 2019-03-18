@@ -38,7 +38,7 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(ghPackage
 
 	// trigger loading of all packages
 	for _, ghPackage := range packages {
-		packagesCache.Get(ghPackage)
+		go packagesCache.Get(ghPackage)
 	}
 
 	// do actual iteration of packages
