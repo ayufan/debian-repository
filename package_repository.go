@@ -11,34 +11,34 @@ import (
 
 	"github.com/google/go-github/github"
 
-	"github.com/ayufan/debian-repository/internal/deb_package"
+	"github.com/ayufan/debian-repository/internal/deb"
 	"github.com/ayufan/debian-repository/internal/multi_hash"
 )
 
 type packageRepository struct {
-	debs             deb_package.PackageSlice
-	loaded           map[deb_package.Key]struct{}
+	debs             deb.PackageSlice
+	loaded           map[deb.Key]struct{}
 	owner, repo      string
 	organizationWide bool
 }
 
 func (p *packageRepository) add(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-	deb, err := packages.get(release, asset)
+	debPackage, err := packages.get(release, asset)
 	if err != nil {
 		return err
 	}
 
 	// don't add the same version, again
-	if _, ok := p.loaded[deb.Key()]; ok {
-		log.Println("ignore", deb.Key())
+	if _, ok := p.loaded[debPackage.Key()]; ok {
+		log.Println("ignore", debPackage.Key())
 		return nil
 	}
 
 	if p.loaded == nil {
-		p.loaded = make(map[deb_package.Key]struct{})
+		p.loaded = make(map[deb.Key]struct{})
 	}
-	p.loaded[deb.Key()] = struct{}{}
-	p.debs = append(p.debs, deb)
+	p.loaded[debPackage.Key()] = struct{}{}
+	p.debs = append(p.debs, debPackage)
 	return nil
 }
 

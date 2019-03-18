@@ -1,4 +1,4 @@
-package deb_package
+package deb
 
 type PackageSlice []*Package
 
