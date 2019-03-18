@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/clearsign"
 
+	"github.com/ayufan/debian-repository/internal/apache_log"
 	"github.com/ayufan/debian-repository/internal/deb"
 	"github.com/ayufan/debian-repository/internal/github_client"
 )
@@ -397,7 +398,7 @@ func main() {
 	r.HandleFunc("/{owner}/{repo}/{distribution}/InRelease", inReleaseHandler).Methods("GET")
 	r.HandleFunc("/{owner}/{repo}/{distribution}/download/{tag_name}/{file_name}", downloadHandler).Methods("GET", "HEAD")
 
-	loggingHandler := NewApacheLoggingHandler(r, os.Stdout)
+	loggingHandler := apache_log.NewApacheLoggingHandler(r, os.Stdout)
 	http.Handle("/", loggingHandler)
 
 	log.Println("Starting web-server on", *httpAddr, "...")
