@@ -36,22 +36,6 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(ghPackage
 		return err
 	}
 
-	ch := make(chan github_client.Package)
-
-	// load at most 4 files at single time
-	for i := 0; i < 4; i++ {
-		go func() {
-			for ghPackage := range ch {
-				packagesCache.Get(ghPackage)
-			}
-		}()
-	}
-
-	// trigger loading of all packages
-	for _, ghPackage := range packages {
-		ch <- ghPackage
-	}
-
 	// do actual iteration of packages
 	for _, ghPackage := range packages {
 		err := fn(ghPackage)
