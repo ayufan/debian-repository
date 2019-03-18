@@ -1,6 +1,6 @@
 FROM alpine
 
-COPY . /go/src/debian-repository
+COPY . /go/src/github.com/ayufan/debian-repository
 
 ENV GOROOT=/usr/lib/go \
     GOPATH=/go \
@@ -8,7 +8,7 @@ ENV GOROOT=/usr/lib/go \
     PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 
 RUN apk add -U git ca-certificates go build-base && \
-  go get -v debian-repository && \
+  go get -v github.com/ayufan/debian-repository && \
   apk del git go build-base && \
   rm -rf /go/src /go/pkg /var/cache/apk/
 
