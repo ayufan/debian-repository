@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"sync"
 	"time"
 
@@ -92,7 +93,7 @@ func (p *Package) MatchingComponents(component string) bool {
 }
 
 func (p *Package) Load(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-	archive, err := ReadFromURL(*asset.BrowserDownloadURL)
+	archive, err := ReadFromURL(*asset.BrowserDownloadURL, "cache-asset-"+strconv.Itoa(*asset.ID))
 	if err != nil {
 		return err
 	}

@@ -50,6 +50,7 @@ func createRoutes() *mux.Router {
 func main() {
 	var err error
 
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 	flag.Parse()
 
 	if *parseDeb != "" {

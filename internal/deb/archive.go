@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/blakesmith/ar"
 	"github.com/ulikunitz/xz"
@@ -175,7 +177,16 @@ func ReadFromFile(fileName string) (*Archive, error) {
 	return Read(file)
 }
 
-func ReadFromURL(url string) (*Archive, error) {
+func ReadFromURL(url, cacheKey string) (deb *Archive, err error) {
+	if deb := ReadFromCache(cacheKey); deb != nil {
+		return deb, nil
+	}
+
+	started := time.Now()
+	defer func() {
+		log.Println("Readed", url, "in", time.Since(started), err)
+	}()
+
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("http get: %q", err)
@@ -185,21 +196,11 @@ func ReadFromURL(url string) (*Archive, error) {
 	}
 	defer resp.Body.Close()
 
-	md5sum := resp.Header.Get("Etag")
-	md5sum = strings.Trim(md5sum, `W/"`)
-	if md5sum == "" {
-		return nil, fmt.Errorf("missing md5sum")
-	}
-
-	if deb := ReadFromCache(md5sum); deb != nil {
-		return deb, nil
-	}
-
-	deb, err := Read(resp.Body)
+	deb, err = Read(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	deb.writeToCache(md5sum)
+	deb.writeToCache(cacheKey)
 	return deb, nil
 }
