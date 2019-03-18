@@ -16,6 +16,8 @@ import (
 	"github.com/stapelberg/godebiancontrol"
 )
 
+var Suites = []string{"bionic", "xenial"}
+
 type Key struct {
 	Name         string
 	Version      string
@@ -29,6 +31,8 @@ type Package struct {
 
 	RepoName    string
 	TagName     string
+	Suite       string
+	Component   string
 	FileName    string
 	DownloadURL string
 	FileSize    int
@@ -67,6 +71,26 @@ func (p *Package) Version() string {
 	return p.paragraphs["Version"]
 }
 
+func (p *Package) MatchingSuite(suite string) bool {
+	if suite != "" {
+		return p.Suite == "all" || p.Suite == suite
+	}
+
+	return p.Suite == "all"
+}
+
+func (p *Package) MatchingArchitecture(architecture string) bool {
+	if architecture != "" {
+		return architecture == "all" || p.Architecture() == architecture
+	}
+
+	return true
+}
+
+func (p *Package) MatchingComponents(component string) bool {
+	return p.Component == component
+}
+
 func (p *Package) Load(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
 	archive, err := ReadFromURL(*asset.BrowserDownloadURL)
 	if err != nil {
@@ -95,7 +119,22 @@ func (p *Package) Load(release *github.RepositoryRelease, asset *github.ReleaseA
 	p.DownloadURL = *asset.BrowserDownloadURL
 	p.FileSize = *asset.Size
 	p.UpdatedAt = asset.UpdatedAt.Time
+	p.Component = "releases"
+	if release.Prerelease != nil && *release.Prerelease {
+		p.Component = "pre-releases"
+	}
 	p.paragraphs = paragraphs[0]
+
+	for _, suite := range Suites {
+		if strings.Contains(p.Version(), suite) || strings.Contains(p.FileName, suite) {
+			p.Suite = suite
+			break
+		}
+	}
+
+	if p.Suite == "" {
+		p.Suite = "all"
+	}
 
 	// Validate package
 	if p.Name() == "" {
@@ -133,9 +172,9 @@ func (p *Package) Ensure(release *github.RepositoryRelease, asset *github.Releas
 func (p *Package) Write(w io.Writer, organizationWide bool) {
 	w.Write(p.Control)
 	if organizationWide {
-		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.RepoName, p.TagName, p.FileName))
+		fmt.Fprintln(w, "Filename:", filepath.Join("pool", p.RepoName, p.TagName, p.FileName))
 	} else {
-		fmt.Fprintln(w, "Filename:", filepath.Join("download", p.TagName, p.FileName))
+		fmt.Fprintln(w, "Filename:", filepath.Join("pool", p.TagName, p.FileName))
 	}
 	fmt.Fprintln(w, "Size:", p.FileSize)
 	fmt.Fprintln(w)

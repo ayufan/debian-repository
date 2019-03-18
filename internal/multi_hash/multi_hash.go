@@ -89,3 +89,8 @@ func (m *MultiHash) WritePackageHashes(w io.Writer) {
 		fmt.Fprintln(w, hashOpt.PackageHash+":", packageHashValue)
 	}
 }
+
+func HashMe(body func(w io.Writer) error) (*MultiHash, error) {
+	hash := New()
+	return hash, body(hash)
+}

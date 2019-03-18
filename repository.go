@@ -31,7 +31,7 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(ghPackage
 		return fmt.Errorf("%q is not allowed. Please add it to ALLOWED_ORGS", vars["owner"])
 	}
 
-	packages, err := githubAPI.ListPackages(vars["owner"], vars["repo"], vars["component"])
+	packages, err := githubAPI.ListPackages(vars["owner"], vars["repo"])
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,9 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(ghPackage
 func getRepository(w http.ResponseWriter, r *http.Request) (*deb.Repository, error) {
 	vars := mux.Vars(r)
 
-	repository := deb.NewRepository(vars["owner"], vars["repo"])
+	repository := deb.NewRepository(vars["owner"], vars["repo"],
+		vars["suite"], vars["component"],
+		signingKey)
 
 	err := enumeratePackages(w, r, func(ghPackage github_client.Package) error {
 		deb, err := packagesCache.Get(ghPackage)

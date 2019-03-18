@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 
 	"github.com/gorilla/mux"
 
+	"github.com/ayufan/debian-repository/internal/deb"
 	"github.com/ayufan/debian-repository/internal/github_client"
 	"github.com/ayufan/debian-repository/internal/http_helpers"
 )
@@ -58,10 +58,14 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "<code>$ curl -fsSL "+url+"/archive.key | sudo apt-key add -</code>")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>2. Add stable repository:</h4>")
-	fmt.Fprintln(w, `<code>$ sudo add-apt-repository "deb `+url+`/releases /"</code>`)
+	for _, suite := range deb.Suites {
+		fmt.Fprintln(w, `<code>$ sudo add-apt-repository "deb `+url+` `+suite+` releases"</code><br>`)
+	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>3. (optionally) Add pre-release repository:</h4>")
-	fmt.Fprintln(w, `<code>$ sudo add-apt-repository "deb `+url+`/pre-releases /"</code>`)
+	for _, suite := range deb.Suites {
+		fmt.Fprintln(w, `<code>$ sudo add-apt-repository "deb `+url+` `+suite+` releases pre-releases"</code><br>`)
+	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>4. Update apt:</h4>")
 	fmt.Fprintln(w, `<code>$ sudo apt-get update</code>`)
@@ -71,8 +75,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/pre-releases", url+"/pre-releases")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "<h4>You can view all packages at:</h4>")
-	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/releases/Packages", url+"/releases/Packages")
-	fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/pre-releases/Packages", url+"/pre-releases/Packages")
+	for _, suite := range deb.Suites {
+		fmt.Fprintf(w, `<a href=%q>%s</a><br>`, url+"/dists/"+suite+"/InRelease", url+"/dists/"+suite+"/InRelease")
+	}
 	fmt.Fprintln(w)
 }
 
@@ -91,6 +96,8 @@ func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, "\tDownloadURL:", p.DownloadURL)
 			fmt.Fprintln(w, "\tSize:", p.FileSize)
 			fmt.Fprintln(w, "\tUpdatedAt:", p.UpdatedAt)
+			fmt.Fprintln(w, "\tSuite:", p.Suite)
+			fmt.Fprintln(w, "\tComponent:", p.Component)
 		}
 		fmt.Fprintln(w)
 		return nil
@@ -107,65 +114,24 @@ func archiveKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func packagesHandler(w http.ResponseWriter, r *http.Request) {
+func fileHandler(w http.ResponseWriter, r *http.Request) {
 	repository, err := getRepository(w, r)
 	if http_helpers.HandleError(w, err) {
 		return
 	}
 
-	repository.Write(w)
-}
+	vars := mux.Vars(r)
 
-func packagesGzHandler(w http.ResponseWriter, r *http.Request) {
-	repository, err := getRepository(w, r)
-	if http_helpers.HandleError(w, err) {
+	println("FileHandler", r.RequestURI, vars["file"])
+
+	files := repository.AllFiles()
+	file := files[vars["file"]]
+	if file == nil {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	err = http_helpers.WriteGz(w, func(body io.Writer) error {
-		repository.Write(body)
-		return nil
-	})
-
-	if http_helpers.HandleError(w, err) {
-		return
-	}
-}
-
-func releaseHandler(w http.ResponseWriter, r *http.Request) {
-	repository, err := getRepository(w, r)
-	if http_helpers.HandleError(w, err) {
-		return
-	}
-
-	repository.WriteRelease(w)
-}
-
-func releaseGpgHandler(w http.ResponseWriter, r *http.Request) {
-	repository, err := getRepository(w, r)
-	if http_helpers.HandleError(w, err) {
-		return
-	}
-
-	err = signingKey.EncodeWithArmor(w, func(wd io.Writer) error {
-		repository.WriteRelease(wd)
-		return nil
-	})
-
-	http_helpers.HandleError(w, err)
-}
-
-func inReleaseHandler(w http.ResponseWriter, r *http.Request) {
-	repository, err := getRepository(w, r)
-	if http_helpers.HandleError(w, err) {
-		return
-	}
-
-	err = signingKey.Encode(w, func(wd io.Writer) error {
-		repository.WriteRelease(wd)
-		return nil
-	})
-
+	err = file.Writer(w)
 	http_helpers.HandleError(w, err)
 }
 

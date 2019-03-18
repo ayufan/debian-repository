@@ -1,7 +1,6 @@
 package github_client
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/google/go-github/github"
@@ -12,7 +11,7 @@ type Package struct {
 	Asset   *github.ReleaseAsset
 }
 
-func (a *API) ListPackages(owner, repo, component string) ([]Package, error) {
+func (a *API) ListPackages(owner, repo string) ([]Package, error) {
 	releases, _, err := a.ListReleases(owner, repo)
 	if err != nil {
 		return nil, err
@@ -23,17 +22,6 @@ func (a *API) ListPackages(owner, repo, component string) ([]Package, error) {
 	for _, release := range releases {
 		if release.Draft != nil && *release.Draft {
 			continue
-		}
-
-		switch component {
-		case "releases":
-			if release.Prerelease != nil && *release.Prerelease {
-				continue
-			}
-		case "pre-releases":
-		case "":
-		default:
-			return nil, fmt.Errorf("%q is unknown component", component)
 		}
 
 		for _, asset := range release.Assets {
