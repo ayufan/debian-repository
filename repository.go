@@ -31,7 +31,7 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(ghPackage
 		return fmt.Errorf("%q is not allowed. Please add it to ALLOWED_ORGS", vars["owner"])
 	}
 
-	packages, err := githubAPI.ListPackages(vars["owner"], vars["repo"], vars["distribution"])
+	packages, err := githubAPI.ListPackages(vars["owner"], vars["repo"], vars["component"])
 	if err != nil {
 		return err
 	}

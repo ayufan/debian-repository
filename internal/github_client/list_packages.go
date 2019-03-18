@@ -12,7 +12,7 @@ type Package struct {
 	Asset   *github.ReleaseAsset
 }
 
-func (a *API) ListPackages(owner, repo, distribution string) ([]Package, error) {
+func (a *API) ListPackages(owner, repo, component string) ([]Package, error) {
 	releases, _, err := a.ListReleases(owner, repo)
 	if err != nil {
 		return nil, err
@@ -25,14 +25,15 @@ func (a *API) ListPackages(owner, repo, distribution string) ([]Package, error) 
 			continue
 		}
 
-		switch distribution {
+		switch component {
 		case "releases":
 			if release.Prerelease != nil && *release.Prerelease {
 				continue
 			}
 		case "pre-releases":
+		case "":
 		default:
-			return nil, fmt.Errorf("%q is unknown distribution", distribution)
+			return nil, fmt.Errorf("%q is unknown component", component)
 		}
 
 		for _, asset := range release.Assets {
