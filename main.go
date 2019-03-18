@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -18,11 +17,11 @@ import (
 	"github.com/golang/groupcache/lru"
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
-	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/clearsign"
-	"golang.org/x/oauth2"
+
+	"github.com/ayufan/debian-repository/internal/github_client"
 )
 
 var httpAddr = flag.String("httpAddr", ":5000", "HTTP Address to listen to")
@@ -32,8 +31,8 @@ var packageLruCache = flag.Int("packageLruCache", 10000, "Number of packages sto
 var parseDeb = flag.String("parseDeb", "", "Try to parse a debian archive")
 
 var allowedOwners []string
-var client *github.Client
 var signingKey *openpgp.Entity
+var githubAPI *github_client.API
 
 func isOwnerAllowed(owner string) bool {
 	for _, allowedOwner := range allowedOwners {
@@ -81,7 +80,7 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(release *
 		return fmt.Errorf("%q is not allowed. Please add it to ALLOWED_ORGS", vars["owner"])
 	}
 
-	releases, resp, err := listReleases(vars["owner"], vars["repo"])
+	releases, resp, err := githubAPI.ListReleases(vars["owner"], vars["repo"])
 	if resp != nil {
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(resp.Rate.Limit))
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(resp.Rate.Remaining))
@@ -328,7 +327,7 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintln(w, "OK")
 
-	requestCache.Flush()
+	githubAPI.Flush()
 	packages.clear()
 }
 
@@ -352,20 +351,8 @@ func main() {
 		return
 	}
 
-	if githubToken := os.Getenv("GITHUB_TOKEN"); githubToken != "" {
-		ctx := context.Background()
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: githubToken},
-		)
-		tc := oauth2.NewClient(ctx, ts)
-		client = github.NewClient(tc)
-		log.Println("Using GITHUB_TOKEN.")
-	} else {
-		client = github.NewClient(nil)
-		log.Println("Using Public API. You may want to pass GITHUB_TOKEN.")
-	}
+	githubAPI = github_client.New(os.Getenv("GITHUB_TOKEN"), *requestCacheExpiration)
 
-	requestCache = cache.New(*requestCacheExpiration, time.Minute)
 	packages = &debPackages{
 		cache: lru.New(*packageLruCache),
 	}
