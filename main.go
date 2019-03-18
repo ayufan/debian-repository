@@ -24,6 +24,7 @@ import (
 	"github.com/ayufan/debian-repository/internal/apache_log"
 	"github.com/ayufan/debian-repository/internal/deb"
 	"github.com/ayufan/debian-repository/internal/github_client"
+	"github.com/ayufan/debian-repository/internal/http_helpers"
 )
 
 var httpAddr = flag.String("httpAddr", ":5000", "HTTP Address to listen to")
@@ -216,7 +217,7 @@ func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
 
 func archiveKeyHandler(w http.ResponseWriter, r *http.Request) {
 	wd, err := armor.Encode(w, openpgp.PublicKeyType, nil)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 	defer wd.Close()
@@ -226,7 +227,7 @@ func archiveKeyHandler(w http.ResponseWriter, r *http.Request) {
 
 func packagesHandler(w http.ResponseWriter, r *http.Request) {
 	repository, err := getPackages(w, r)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 
@@ -235,7 +236,7 @@ func packagesHandler(w http.ResponseWriter, r *http.Request) {
 
 func packagesGzHandler(w http.ResponseWriter, r *http.Request) {
 	repository, err := getPackages(w, r)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 
@@ -246,7 +247,7 @@ func packagesGzHandler(w http.ResponseWriter, r *http.Request) {
 
 func releaseHandler(w http.ResponseWriter, r *http.Request) {
 	repository, err := getPackages(w, r)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 
@@ -255,7 +256,7 @@ func releaseHandler(w http.ResponseWriter, r *http.Request) {
 
 func releaseGpgHandler(w http.ResponseWriter, r *http.Request) {
 	repository, err := getPackages(w, r)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 
@@ -272,12 +273,12 @@ func releaseGpgHandler(w http.ResponseWriter, r *http.Request) {
 
 func inReleaseHandler(w http.ResponseWriter, r *http.Request) {
 	repository, err := getPackages(w, r)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 
 	wd, err := clearsign.Encode(w, signingKey.PrivateKey, nil)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 	defer wd.Close()
@@ -297,23 +298,23 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		vars["tag_name"], vars["file_name"])
 
 	req, err := http.NewRequest("GET", realURL, nil)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 
 	res, err := http.DefaultTransport.RoundTrip(req)
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode/100 != 3 {
-		handleError(w, fmt.Errorf("expected 3xx, but got: %d: %s", res.StatusCode, res.Status))
+		http_helpers.HandleError(w, fmt.Errorf("expected 3xx, but got: %d: %s", res.StatusCode, res.Status))
 		return
 	}
 
 	location, err := res.Location()
-	if handleError(w, err) {
+	if http_helpers.HandleError(w, err) {
 		return
 	}
 

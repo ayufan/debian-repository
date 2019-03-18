@@ -1,8 +1,8 @@
-package main
+package http_helpers
 
 import "net/http"
 
-func handleError(w http.ResponseWriter, err error) bool {
+func HandleError(w http.ResponseWriter, err error) bool {
 	if err == nil {
 		return false
 	}
