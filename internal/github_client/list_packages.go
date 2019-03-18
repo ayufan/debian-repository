@@ -24,12 +24,16 @@ func (a *API) ListPackages(owner, repo string) ([]Package, error) {
 			continue
 		}
 
+		release2 := release
+
 		for _, asset := range release.Assets {
 			if !strings.HasSuffix(*asset.Name, ".deb") {
 				continue
 			}
 
-			packages = append(packages, Package{&release, &asset})
+			asset2 := asset
+
+			packages = append(packages, Package{&release2, &asset2})
 		}
 	}
 
