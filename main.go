@@ -14,7 +14,6 @@ import (
 
 	"time"
 
-	"github.com/golang/groupcache/lru"
 	"github.com/google/go-github/github"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/openpgp"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/ayufan/debian-repository/internal/apache_log"
 	"github.com/ayufan/debian-repository/internal/deb"
+	"github.com/ayufan/debian-repository/internal/deb_cache"
 	"github.com/ayufan/debian-repository/internal/github_client"
 	"github.com/ayufan/debian-repository/internal/http_helpers"
 )
@@ -36,6 +36,7 @@ var parseDeb = flag.String("parseDeb", "", "Try to parse a debian archive")
 var allowedOwners []string
 var signingKey *openpgp.Entity
 var githubAPI *github_client.API
+var packagesCache *deb_cache.Cache
 
 func isOwnerAllowed(owner string) bool {
 	for _, allowedOwner := range allowedOwners {
@@ -93,7 +94,7 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(release *
 	// do trigger loading of all packages
 	err = iteratePackages(releases, vars["distribution"], func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
 		go func(release github.RepositoryRelease, asset github.ReleaseAsset) {
-			packages.get(&release, &asset)
+			packagesCache.Get(&release, &asset)
 		}(*release, *asset)
 		return nil
 	})
@@ -115,7 +116,7 @@ func getPackages(w http.ResponseWriter, r *http.Request) (*deb.Repository, error
 	repository := deb.NewRepository(vars["owner"], vars["repo"])
 
 	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		deb, err := packages.get(release, asset)
+		deb, err := packagesCache.Get(release, asset)
 		if err == nil {
 			repository.Add(deb)
 		}
@@ -196,7 +197,7 @@ func distributionIndexHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "List of packages:")
 
 	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		p, err := packages.get(release, asset)
+		p, err := packagesCache.Get(release, asset)
 		fmt.Fprintln(w, "Package:", *release.TagName, "/", *asset.Name)
 		fmt.Fprintln(w, "\tIsPrerelease:", *release.Prerelease)
 		fmt.Fprintln(w, "\tStatus:", err)
@@ -330,7 +331,7 @@ func clearHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "OK")
 
 	githubAPI.Flush()
-	packages.clear()
+	packagesCache.Clear()
 }
 
 func main() {
@@ -347,10 +348,7 @@ func main() {
 	}
 
 	githubAPI = github_client.New(os.Getenv("GITHUB_TOKEN"), *requestCacheExpiration)
-
-	packages = &debPackages{
-		cache: lru.New(*packageLruCache),
-	}
+	packagesCache = deb_cache.New(*packageLruCache)
 
 	entityList, err := openpgp.ReadArmoredKeyRing(bytes.NewBufferString(os.Getenv("GPG_KEY")))
 	if err != nil {

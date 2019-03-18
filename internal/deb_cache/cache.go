@@ -1,4 +1,4 @@
-package main
+package deb_cache
 
 import (
 	"errors"
@@ -10,14 +10,12 @@ import (
 	"github.com/ayufan/debian-repository/internal/deb"
 )
 
-type debPackages struct {
+type Cache struct {
 	cache *lru.Cache
 	lock  sync.Mutex
 }
 
-var packages *debPackages
-
-func (d *debPackages) find(id int) *deb.Package {
+func (d *Cache) find(id int) *deb.Package {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -30,7 +28,7 @@ func (d *debPackages) find(id int) *deb.Package {
 	return debPackage.(*deb.Package)
 }
 
-func (d *debPackages) get(release *github.RepositoryRelease, asset *github.ReleaseAsset) (*deb.Package, error) {
+func (d *Cache) Get(release *github.RepositoryRelease, asset *github.ReleaseAsset) (*deb.Package, error) {
 	if asset == nil || asset.ID == nil {
 		return nil, errors.New("asset is null")
 	}
@@ -39,9 +37,15 @@ func (d *debPackages) get(release *github.RepositoryRelease, asset *github.Relea
 	return deb, deb.Ensure(release, asset)
 }
 
-func (d *debPackages) clear() {
+func (d *Cache) Clear() {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
 	d.cache.Clear()
+}
+
+func New(itemCount int) *Cache {
+	return &Cache{
+		cache: lru.New(itemCount),
+	}
 }
