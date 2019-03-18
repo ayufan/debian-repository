@@ -14,6 +14,7 @@ import (
 	"github.com/blakesmith/ar"
 	"github.com/ulikunitz/xz"
 
+	"github.com/ayufan/debian-repository/internal/multi_hash"
 	"github.com/ayufan/debian-repository/internal/repository_cache"
 )
 
@@ -95,7 +96,7 @@ type debArchive struct {
 }
 
 func (d *debArchive) parseArchive(r io.Reader) error {
-	m := newMultiHash()
+	m := multi_hash.New()
 	pr, pw := io.Pipe()
 	defer pr.Close()
 
@@ -124,7 +125,7 @@ func (d *debArchive) parseArchive(r io.Reader) error {
 	}
 	if err == nil {
 		buffer := bytes.NewBuffer(d.Control)
-		m.writePackageHashes(buffer)
+		m.WritePackageHashes(buffer)
 		d.Control = buffer.Bytes()
 	}
 	return err

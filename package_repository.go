@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/google/go-github/github"
+
+	"github.com/ayufan/debian-repository/internal/multi_hash"
 )
 
 type debPackageSlice []*debPackage
@@ -121,8 +123,8 @@ func (p *packageRepository) getDescription() string {
 }
 
 func (p *packageRepository) writeRelease(w io.Writer) {
-	packagesHash := newMultiHash()
-	packagesGzHash := newMultiHash()
+	packagesHash := multi_hash.New()
+	packagesGzHash := multi_hash.New()
 
 	packagesGz := gzip.NewWriter(packagesGzHash)
 	defer packagesGz.Close()
@@ -133,9 +135,9 @@ func (p *packageRepository) writeRelease(w io.Writer) {
 	fmt.Fprintln(w, "Origin:", p.getOrigin())
 	fmt.Fprintln(w, "Description:", p.getDescription())
 	fmt.Fprintln(w, "Date:", p.newestUpdatedAt().Format(time.RFC1123))
-	for _, name := range supportedHashes {
-		fmt.Fprint(w, name, ":\n")
-		packagesHash.releaseHash(w, name, "Packages")
-		packagesGzHash.releaseHash(w, name, "Packages.gz")
+	for _, hashOpt := range multi_hash.Hashes {
+		fmt.Fprint(w, hashOpt.Name, ":\n")
+		packagesHash.WriteReleaseHash(w, hashOpt.Name, "Packages")
+		packagesGzHash.WriteReleaseHash(w, hashOpt.Name, "Packages.gz")
 	}
 }
