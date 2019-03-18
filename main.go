@@ -109,21 +109,20 @@ func enumeratePackages(w http.ResponseWriter, r *http.Request, fn func(release *
 	return nil
 }
 
-func getPackages(w http.ResponseWriter, r *http.Request) (*packageRepository, error) {
+func getPackages(w http.ResponseWriter, r *http.Request) (*deb.Repository, error) {
 	vars := mux.Vars(r)
 
-	repository := &packageRepository{
-		owner:            vars["owner"],
-		repo:             vars["repo"],
-		organizationWide: vars["repo"] == "",
-	}
+	repository := deb.NewRepository(vars["owner"], vars["repo"])
 
 	err := enumeratePackages(w, r, func(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-		repository.add(release, asset)
+		deb, err := packages.get(release, asset)
+		if err == nil {
+			repository.Add(deb)
+		}
 		return nil
 	})
 
-	repository.sort()
+	repository.Sort()
 
 	return repository, err
 }
@@ -231,7 +230,7 @@ func packagesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repository.write(w)
+	repository.Write(w)
 }
 
 func packagesGzHandler(w http.ResponseWriter, r *http.Request) {
@@ -242,7 +241,7 @@ func packagesGzHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "binary/octet-stream")
 
-	repository.writeGz(w)
+	repository.WriteGz(w)
 }
 
 func releaseHandler(w http.ResponseWriter, r *http.Request) {
@@ -251,7 +250,7 @@ func releaseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repository.writeRelease(w)
+	repository.WriteRelease(w)
 }
 
 func releaseGpgHandler(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +264,7 @@ func releaseGpgHandler(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		defer pw.Close()
-		repository.writeRelease(pw)
+		repository.WriteRelease(pw)
 	}()
 
 	openpgp.ArmoredDetachSign(w, signingKey, pr, nil)
@@ -283,7 +282,7 @@ func inReleaseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer wd.Close()
 
-	repository.writeRelease(wd)
+	repository.WriteRelease(wd)
 }
 
 var httpProxy = httputil.ReverseProxy{

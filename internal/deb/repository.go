@@ -1,4 +1,4 @@
-package main
+package deb
 
 import (
 	"compress/gzip"
@@ -9,25 +9,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/github"
-
-	"github.com/ayufan/debian-repository/internal/deb"
 	"github.com/ayufan/debian-repository/internal/multi_hash"
 )
 
-type packageRepository struct {
-	debs             deb.PackageSlice
-	loaded           map[deb.Key]struct{}
+type Repository struct {
+	debs             PackageSlice
+	loaded           map[Key]struct{}
 	owner, repo      string
 	organizationWide bool
 }
 
-func (p *packageRepository) add(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-	debPackage, err := packages.get(release, asset)
-	if err != nil {
-		return err
-	}
-
+func (p *Repository) Add(debPackage *Package) error {
 	// don't add the same version, again
 	if _, ok := p.loaded[debPackage.Key()]; ok {
 		log.Println("ignore", debPackage.Key())
@@ -35,31 +27,31 @@ func (p *packageRepository) add(release *github.RepositoryRelease, asset *github
 	}
 
 	if p.loaded == nil {
-		p.loaded = make(map[deb.Key]struct{})
+		p.loaded = make(map[Key]struct{})
 	}
 	p.loaded[debPackage.Key()] = struct{}{}
 	p.debs = append(p.debs, debPackage)
 	return nil
 }
 
-func (p *packageRepository) sort() {
+func (p *Repository) Sort() {
 	sort.Sort(p.debs)
 }
 
-func (p *packageRepository) write(w io.Writer) {
+func (p *Repository) Write(w io.Writer) {
 	for _, deb := range p.debs {
 		deb.Write(w, p.organizationWide)
 	}
 }
 
-func (p *packageRepository) writeGz(w io.Writer) {
+func (p *Repository) WriteGz(w io.Writer) {
 	gz := gzip.NewWriter(w)
 	defer gz.Close()
 
-	p.write(gz)
+	p.Write(gz)
 }
 
-func (p *packageRepository) newestUpdatedAt() (result time.Time) {
+func (p *Repository) newestUpdatedAt() (result time.Time) {
 	for _, deb := range p.debs {
 		if result.Sub(deb.UpdatedAt) < 0 {
 			result = deb.UpdatedAt
@@ -68,7 +60,7 @@ func (p *packageRepository) newestUpdatedAt() (result time.Time) {
 	return
 }
 
-func (p *packageRepository) getOrigin() string {
+func (p *Repository) getOrigin() string {
 	components := []string{
 		"GITHUB", "AYUFAN", "DEB",
 	}
@@ -81,7 +73,7 @@ func (p *packageRepository) getOrigin() string {
 	return strings.Join(components, "-")
 }
 
-func (p *packageRepository) getDescription() string {
+func (p *Repository) getDescription() string {
 	components := []string{
 		"https://github.com",
 	}
@@ -94,14 +86,14 @@ func (p *packageRepository) getDescription() string {
 	return strings.Join(components, "/")
 }
 
-func (p *packageRepository) writeRelease(w io.Writer) {
+func (p *Repository) WriteRelease(w io.Writer) {
 	packagesHash := multi_hash.New()
 	packagesGzHash := multi_hash.New()
 
 	packagesGz := gzip.NewWriter(packagesGzHash)
 	defer packagesGz.Close()
 
-	p.write(io.MultiWriter(packagesHash, packagesGz))
+	p.Write(io.MultiWriter(packagesHash, packagesGz))
 	packagesGz.Close()
 
 	fmt.Fprintln(w, "Origin:", p.getOrigin())
@@ -111,5 +103,13 @@ func (p *packageRepository) writeRelease(w io.Writer) {
 		fmt.Fprint(w, hashOpt.Name, ":\n")
 		packagesHash.WriteReleaseHash(w, hashOpt.Name, "Packages")
 		packagesGzHash.WriteReleaseHash(w, hashOpt.Name, "Packages.gz")
+	}
+}
+
+func NewRepository(owner, repo string) *Repository {
+	return &Repository{
+		owner:            owner,
+		repo:             repo,
+		organizationWide: repo == "",
 	}
 }
