@@ -3,6 +3,7 @@ package deb
 import (
 	"archive/tar"
 	"bytes"
+	"compress/bzip2"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -94,6 +95,12 @@ func readControlTarXz(r io.Reader) ([]byte, error) {
 	return readControlTar(xz)
 }
 
+func readControlTarBzip2(r io.Reader) ([]byte, error) {
+	bzip2 := bzip2.NewReader(r)
+
+	return readControlTar(bzip2)
+}
+
 type Archive struct {
 	Control []byte
 }
@@ -113,10 +120,14 @@ func (d *Archive) parseArchive(r io.Reader) error {
 	err := enumerateDebArchive(pr, func(name string, r io.Reader) (err error) {
 		if name == "debian-binary" || name == "debian-binary/" {
 			debianVersion, err = readDebianBinary(r)
+		} else if name == "control.tar" || name == "control.tar/" {
+			d.Control, err = readControlTar(r)
 		} else if name == "control.tar.gz" || name == "control.tar.gz/" {
 			d.Control, err = readControlTarGz(r)
 		} else if name == "control.tar.xz" || name == "control.tar.xz/" {
 			d.Control, err = readControlTarXz(r)
+		} else if name == "control.tar.bz2" || name == "control.tar.bz2/" {
+			d.Control, err = readControlTarBzip2(r)
 		}
 		return
 	})
