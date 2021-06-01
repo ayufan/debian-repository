@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/namsral/flag"
 
 	"github.com/ayufan/debian-repository/internal/apache_log"
 	"github.com/ayufan/debian-repository/internal/deb"

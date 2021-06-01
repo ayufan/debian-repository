@@ -1,8 +1,9 @@
 package main
 
 import (
-	"flag"
 	"time"
+
+	"github.com/namsral/flag"
 )
 
 var httpAddr = flag.String("httpAddr", ":5000", "HTTP Address to listen to")
