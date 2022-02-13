@@ -1,19 +1,16 @@
-FROM alpine
+ARG ARCH
+FROM ${ARCH}golang:alpine as build
 
-COPY . /go/src/github.com/ayufan/debian-repository
+COPY . $GOPATH/src/github.com/ayufan/debian-repository
+RUN cd $GOPATH/src/github.com/ayufan/debian-repository && \
+  go install -v ./...
 
-ENV GOROOT=/usr/lib/go \
-    GOPATH=/go \
-    GOBIN=/go/bin \
-    PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-
-RUN apk add -U git ca-certificates go build-base && \
-  go get -v github.com/ayufan/debian-repository && \
-  apk del git go build-base && \
-  rm -rf /go/src /go/pkg /var/cache/apk/
+ARG ARCH
+FROM ${ARCH}alpine as release
+COPY --from=build /go/bin/debian-repository /
 
 VOLUME ["/cache"]
 
 ENV REPOSITORY_CACHE=/cache
 
-ENTRYPOINT ["/go/bin/debian-repository"]
+ENTRYPOINT ["/debian-repository"]
