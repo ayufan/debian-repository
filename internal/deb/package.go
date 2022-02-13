@@ -94,7 +94,7 @@ func (p *Package) MatchingComponents(component string) bool {
 }
 
 func (p *Package) Load(release *github.RepositoryRelease, asset *github.ReleaseAsset) error {
-	archive, err := ReadFromURL(*asset.BrowserDownloadURL, "cache-asset-"+strconv.Itoa(*asset.ID))
+	archive, err := ReadFromURL(*asset.BrowserDownloadURL, "cache-asset-"+strconv.FormatInt(*asset.ID, 10))
 	if err != nil {
 		return err
 	}

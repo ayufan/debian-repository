@@ -1,6 +1,7 @@
 package github_client
 
 import (
+	"context"
 	"log"
 	"path/filepath"
 	"sync"
@@ -10,15 +11,15 @@ import (
 	"github.com/patrickmn/go-cache"
 )
 
-func (a *API) ListReleasesOneRepo(owner, repo string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
+func (a *API) ListReleasesOneRepo(owner, repo string) (releases []*github.RepositoryRelease, resp *github.Response, err error) {
 	cached, found := a.requestCache.Get(filepath.Join(owner, repo))
 	if found {
-		releases = cached.([]github.RepositoryRelease)
+		releases = cached.([]*github.RepositoryRelease)
 		return
 	}
 
 	start := time.Now()
-	releases, resp, err = a.client.Repositories.ListReleases(owner, repo, &listOptions)
+	releases, resp, err = a.client.Repositories.ListReleases(context.TODO(), owner, repo, &listOptions)
 
 	var rate github.Rate
 	if resp != nil {
@@ -40,7 +41,7 @@ func (a *API) ListReleasesOneRepo(owner, repo string) (releases []github.Reposit
 	return
 }
 
-func (a *API) ListReleasesInOrganization(owner string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
+func (a *API) ListReleasesInOrganization(owner string) (releases []*github.RepositoryRelease, resp *github.Response, err error) {
 	repos, resp, err := a.ListProjects(owner)
 	if err != nil {
 		return nil, resp, err
@@ -71,7 +72,7 @@ func (a *API) ListReleasesInOrganization(owner string) (releases []github.Reposi
 	return
 }
 
-func (a *API) ListReleases(owner, repo string) (releases []github.RepositoryRelease, resp *github.Response, err error) {
+func (a *API) ListReleases(owner, repo string) (releases []*github.RepositoryRelease, resp *github.Response, err error) {
 	if repo != "" {
 		return a.ListReleasesOneRepo(owner, repo)
 	}

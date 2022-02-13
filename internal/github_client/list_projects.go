@@ -3,20 +3,21 @@ package github_client
 import (
 	"log"
 	"time"
+	"context"
 
 	"github.com/google/go-github/github"
 	"github.com/patrickmn/go-cache"
 )
 
-func (a *API) ListProjects(owner string) (repos []github.Repository, resp *github.Response, err error) {
+func (a *API) ListProjects(owner string) (repos []*github.Repository, resp *github.Response, err error) {
 	cached, found := a.requestCache.Get(owner)
 	if found {
-		repos = cached.([]github.Repository)
+		repos = cached.([]*github.Repository)
 		return
 	}
 
 	start := time.Now()
-	repos, resp, err = a.client.Repositories.List(owner, &github.RepositoryListOptions{ListOptions: listOptions})
+	repos, resp, err = a.client.Repositories.List(context.TODO(), owner, &github.RepositoryListOptions{ListOptions: listOptions})
 
 	var rate github.Rate
 	if resp != nil {

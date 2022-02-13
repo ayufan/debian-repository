@@ -24,8 +24,6 @@ func (a *API) ListPackages(owner, repo string) ([]Package, error) {
 			continue
 		}
 
-		release2 := release
-
 		for _, asset := range release.Assets {
 			if !strings.HasSuffix(*asset.Name, ".deb") {
 				continue
@@ -33,7 +31,7 @@ func (a *API) ListPackages(owner, repo string) ([]Package, error) {
 
 			asset2 := asset
 
-			packages = append(packages, Package{&release2, &asset2})
+			packages = append(packages, Package{release, &asset2})
 		}
 	}
 

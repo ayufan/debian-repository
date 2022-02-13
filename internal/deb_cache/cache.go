@@ -15,7 +15,7 @@ type Cache struct {
 	lock  sync.Mutex
 }
 
-func (d *Cache) find(id int) *deb.Package {
+func (d *Cache) find(id int64) *deb.Package {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
